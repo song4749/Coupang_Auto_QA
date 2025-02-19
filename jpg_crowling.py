@@ -9,7 +9,7 @@ from io import BytesIO
 # ✅ Windows 환경에서 UTF-8로 출력되도록 설정
 sys.stdout.reconfigure(encoding="utf-8")
 
-save_folder = "download_imges"
+save_folder = "download_images"
 
 def get_html(url):
     """Playwright를 사용해 개발자 도구(F12)의 Elements와 같은 HTML을 가져오는 함수"""
@@ -85,7 +85,7 @@ def download_images(image_urls):
 
 
 # ✅ 테스트할 쿠팡 제품 URL
-url = "https://www.coupang.com/vp/products/1722408595?itemId=2931609886&vendorItemId=70920207939&sourceType=CATEGORY&categoryId=486634&isAddedCart="
+url = "https://www.coupang.com/vp/products/7245496425?itemId=18419322860&vendorItemId=85573616196&q=%EB%A1%9C%EB%B3%B4%EB%9D%BD&itemsCount=36&searchId=1172c9662582230&rank=13&searchRank=13&isAddedCart="
 html_source = get_html(url)
 
 # ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출
