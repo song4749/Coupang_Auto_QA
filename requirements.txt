@@ -1,3 +1,10 @@
 playwright
 easyocr
+lxml
+langchain
+langchain-community
+langchain-openai
+faiss-cpu
+beautifulsoup4
 openai
+tiktoken
