@@ -1,4 +1,6 @@
 import streamlit as st
+import subprocess
+import shutil
 import os
 from langchain_community.document_loaders import BSHTMLLoader
 from langchain_community.vectorstores import FAISS
@@ -20,47 +22,104 @@ def get_api_key():
         st.success("✅ OpenAI API 키가 정상적으로 로드되었습니다.")
 
 
+# ✅ 크롤링 실행 함수
+def run_crawler(link):
+    """📌 `jpg_crowling.py` 실행 (상품 링크에서 이미지 크롤링)"""
+    try:
+        subprocess.run(["python", "jpg_crowling.py", link], check=True)
+
+    except Exception as e:
+        st.error(f"❌ 크롤링 오류 발생: {e}")
+
+
+# ✅ OCR 실행 함수
+def run_ocr():
+    """📌 `jpg2text.ipynb` 실행 (이미지 → HTML 변환)"""
+    try:
+        subprocess.run(["python", "jpg2text_run.py"], check=True)
+
+    except Exception as e:
+        st.error(f"❌ OCR 오류 발생: {e}")
+
+
 @st.cache_resource
 def load_vector_store():
-    """📌 벡터 저장소를 로드하거나, 없으면 새로 생성"""
-    if os.path.exists("faiss_index"):
-        return FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+    vectorstore = None  
+
+    # ✅ HTML 폴더 내 모든 파일을 다시 벡터 DB로 저장
+    for filename in os.listdir(html_folder_path):
+        if filename.endswith(".html"):
+            file_path = os.path.join(html_folder_path, filename)
+            try:
+                # ✅ 각 HTML 파일을 개별 문서로 로드
+                loader = BSHTMLLoader(file_path, open_encoding="utf-8", bs_kwargs={"features": "html.parser"})
+                documents = loader.load()
+
+                # ✅ 벡터스토어 생성 (첫 번째 문서)
+                if vectorstore is None:
+                    vectorstore = FAISS.from_documents(documents, embeddings)
+                else:
+                    vectorstore.add_documents(documents)  # 기존 DB에 추가
+
+                print(f"✅ {filename} 처리 완료! ({len(documents)}개 문서 추가됨)")
+
+                # ✅ HTML 파일 삭제
+                os.remove(file_path)
+                print(f"🗑️ {filename} 삭제 완료!")
+
+            except Exception as e:
+                print(f"❌ {filename} 처리 중 오류 발생: {e}")
+                continue  
+
+    # ✅ 새로운 벡터 DB 저장
+    if vectorstore:
+        vectorstore.save_local("faiss_index")
+        print("✅ 새로운 벡터 데이터베이스 저장 완료!")
+        return vectorstore
     else:
-        vectorstore = None  
-        for filename in os.listdir(html_folder_path):
-            if filename.endswith(".html"):
-                file_path = os.path.join(html_folder_path, filename)
-                try:
-                    # ✅ 각 HTML 파일을 개별 문서로 로드
-                    loader = BSHTMLLoader(file_path, open_encoding="utf-8", bs_kwargs={"features": "html.parser"})
-                    documents = loader.load()
-                    
-                    # ✅ 벡터스토어 생성 및 문서 추가
-                    if vectorstore is None:
-                        vectorstore = FAISS.from_documents(documents, embeddings)
-                    else:
-                        vectorstore.add_documents(documents)
-
-                    print(f"✅ {filename} 처리 완료! ({len(documents)}개 문서 추가됨)")
-                except Exception as e:
-                    print(f"❌ {filename} 처리 중 오류 발생: {e}")
-                    continue  
-
-        # ✅ 벡터 DB 저장
-        if vectorstore:
-            vectorstore.save_local("faiss_index")
-            print("✅ 벡터 데이터베이스 저장 완료!")
-            return vectorstore
-        else:
-            print("⚠️ 벡터스토어 생성 실패. HTML 파일을 확인하세요.")
-            return None
+        print("⚠️ 벡터스토어 생성 실패. HTML 파일을 확인하세요.")
+        return None
         
+
+# ✅ 벡터 DB 삭제 함수
+def delete_vector_db():
+    """세션이 종료될 때 벡터 DB 삭제"""
+    if os.path.exists("faiss_index"):
+        shutil.rmtree("faiss_index")
+        print("🗑 세션 종료 감지 - 벡터 DB 삭제 완료!")
+
+
+# ✅ Streamlit 세션 상태 확인 및 벡터 DB 삭제 로직 적용
+if "session_active" not in st.session_state:
+    # 🚀 세션이 새로 시작됨 (즉, 새로고침 또는 페이지 닫기 후 다시 접속한 경우)
+    st.cache_resource.clear()
+    delete_vector_db()  # ✅ 벡터 DB 삭제 실행
+    
 
 # Streamlit UI
 st.title("쿠팡 자동응답 시스템")
 st.write("쿠팡 상품 링크와 관련 질문을 입력하시면 자동으로 답변해 드립니다!")
 
-user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", "")
+link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder="https://www.coupang.com/vp/products/123456...")
+
+if st.button("🖼 이미지 크롤링 실행"):
+    if link:
+        with st.spinner("🔄 이미지 가져오는 중..."):
+            run_crawler(link)
+        st.success("✅ 이미지 크롤링 완료!")
+
+        with st.spinner("🔄 이미지 변환 중..."):
+            run_ocr()
+        st.success("✅ 변환 완료! 데이터가 저장되었습니다.")
+
+        # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
+        st.session_state.data_ready = True
+
+    else:
+        st.error("❌ 링크를 입력하세요!")
+
+if "data_ready" not in st.session_state:
+    st.stop()  # 🚀 사용자가 링크 입력 후 실행되도록 중단
 
 get_api_key()
 
@@ -71,7 +130,9 @@ html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 # ✅ 벡터 데이터베이스 로드 (캐싱 적용)
-vectorstore = load_vector_store()
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = load_vector_store()
+vectorstore = st.session_state.vectorstore
 
 # ✅ OpenAI LLM (GPT-4 Turbo) 설정
 llm = ChatOpenAI(model_name="gpt-4o", temperature=0.3)
@@ -117,8 +178,14 @@ qa_chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": prompt_template}
 )
 
-# ✅ 질문 테스트 (예제)
+user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", placeholder="ex)배송이 얼마나 걸려?")
+
 if st.button("질문하기"):
-    response = qa_chain.invoke({"query": user_input})
-    answer = response.get("result")
-    st.markdown(f"📌 답변 결과: \n\n{answer}")
+    if user_input:
+        with st.spinner("🔄 질문 처리 중..."):
+            response = qa_chain.invoke({"query": user_input})
+            answer = response.get("result")
+        st.markdown(f"📌 답변 결과: \n\n{answer}")
+    
+    else:
+        st.error("❌ 질문을 입력하세요!")

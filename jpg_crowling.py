@@ -10,9 +10,19 @@ from io import BytesIO
 sys.stdout.reconfigure(encoding="utf-8")
 
 save_folder = "download_images"
+if not os.path.exists(save_folder):
+    os.makedirs(save_folder)
+
+# # ✅ 명령줄 인자로 URL을 받기
+# if len(sys.argv) < 2:
+#     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
+#     sys.exit(1)
+
+# url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
+
 
 def get_html(url):
-    """Playwright를 사용해 개발자 도구(F12)의 Elements와 같은 HTML을 가져오는 함수"""
+    """Playwright를 사용해 HTML을 가져오는 함수"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # 브라우저 보이게 실행 (디버깅 가능)
         context = browser.new_context()
@@ -24,13 +34,12 @@ def get_html(url):
         })
 
         # 페이지 이동 (HTML만 로드되면 가져오기)
-        page.goto(url, timeout=60000, wait_until="domcontentloaded")
+        page.goto(url, timeout=60000, wait_until="load")
 
-        # ✅ 모든 리소스 로드될 때까지 대기
-        page.wait_for_load_state("load")
+        page.wait_for_selector("div.subType-IMAGE img, div.subType-TEXT img", timeout=20000)
 
-        # ✅ 특정 요소가 나올 때까지 대기 (상품 이미지가 있는 div)
-        page.wait_for_selector("div.subType-IMAGE", timeout=10000)
+        # # ✅ 특정 요소가 나올 때까지 대기 (상품 이미지가 있는 div)
+        # page.wait_for_selector("div.subType-IMAGE", timeout=10000)
 
         # ✅ JavaScript 실행 후 동적으로 생성된 HTML 가져오기
         html = page.evaluate("document.documentElement.outerHTML")
@@ -44,7 +53,7 @@ def extract_filtered_images(html):
     soup = BeautifulSoup(html, "html.parser")
 
     # 'type-IMAGE_NO_SPACE' 내의 'subType-IMAGE' 찾기
-    image_containers = soup.select("div.subType-IMAGE")
+    image_containers = soup.select("div.subType-IMAGE, div.subType-TEXT")
 
     image_urls = []
 
@@ -83,9 +92,8 @@ def download_images(image_urls):
         except Exception as e:
             print(f"❌ {i}. 오류 발생: {e}")
 
-
-# ✅ 테스트할 쿠팡 제품 URL
-url = "https://www.coupang.com/vp/products/7245496425?itemId=18419322860&vendorItemId=85573616196&q=%EB%A1%9C%EB%B3%B4%EB%9D%BD&itemsCount=36&searchId=1172c9662582230&rank=13&searchRank=13&isAddedCart="
+url = "https://www.coupang.com/vp/products/7487768421?itemId=19573765359&vendorItemId=86681495158&q=%EC%84%B8%ED%83%81%EA%B8%B0&itemsCount=36&searchId=656044fb6519252&rank=6&searchRank=6&isAddedCart="
+# ✅ 쿠팡 제품 URL
 html_source = get_html(url)
 
 # ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출

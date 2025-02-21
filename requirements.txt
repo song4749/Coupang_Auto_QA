@@ -8,3 +8,4 @@ faiss-cpu
 beautifulsoup4
 openai
 tiktoken
+streamlit
