@@ -13,12 +13,12 @@ save_folder = "download_images"
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 
-# # ✅ 명령줄 인자로 URL을 받기
-# if len(sys.argv) < 2:
-#     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
-#     sys.exit(1)
+# ✅ 명령줄 인자로 URL을 받기
+if len(sys.argv) < 2:
+    print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
+    sys.exit(1)
 
-# url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
+url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
 
 def get_html(url):
@@ -92,8 +92,9 @@ def download_images(image_urls):
         except Exception as e:
             print(f"❌ {i}. 오류 발생: {e}")
 
-url = "https://www.coupang.com/vp/products/7487768421?itemId=19573765359&vendorItemId=86681495158&q=%EC%84%B8%ED%83%81%EA%B8%B0&itemsCount=36&searchId=656044fb6519252&rank=6&searchRank=6&isAddedCart="
+
 # ✅ 쿠팡 제품 URL
+# url = "https://www.coupang.com/vp/products/7487768421?itemId=19573765359&vendorItemId=86681495158&q=%EC%84%B8%ED%83%81%EA%B8%B0&itemsCount=36&searchId=656044fb6519252&rank=6&searchRank=6&isAddedCart="
 html_source = get_html(url)
 
 # ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출

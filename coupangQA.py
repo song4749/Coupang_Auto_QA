@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit as st
 import subprocess
 import shutil
 import os
@@ -19,12 +20,12 @@ def get_api_key():
     if api_key is None:
         st.error("🚨 OpenAI API 키가 설정되지 않았습니다! .env 파일을 확인하세요.")
     else:
-        st.success("✅ OpenAI API 키가 정상적으로 로드되었습니다.")
+        st.toast("✅ OpenAI API 키가 정상적으로 로드되었습니다.")
 
 
 # ✅ 크롤링 실행 함수
 def run_crawler(link):
-    """📌 `jpg_crowling.py` 실행 (상품 링크에서 이미지 크롤링)"""
+    """📌 jpg_crowling.py 실행 (상품 링크에서 이미지 크롤링)"""
     try:
         subprocess.run(["python", "jpg_crowling.py", link], check=True)
 
@@ -34,7 +35,7 @@ def run_crawler(link):
 
 # ✅ OCR 실행 함수
 def run_ocr():
-    """📌 `jpg2text.ipynb` 실행 (이미지 → HTML 변환)"""
+    """📌 jpg2text.ipynb 실행 (이미지 → HTML 변환)"""
     try:
         subprocess.run(["python", "jpg2text_run.py"], check=True)
 
@@ -106,11 +107,11 @@ if st.button("🖼 이미지 크롤링 실행"):
     if link:
         with st.spinner("🔄 이미지 가져오는 중..."):
             run_crawler(link)
-        st.success("✅ 이미지 크롤링 완료!")
+        st.toast("✅ 이미지 크롤링 완료!")
 
         with st.spinner("🔄 이미지 변환 중..."):
             run_ocr()
-        st.success("✅ 변환 완료! 데이터가 저장되었습니다.")
+        st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
 
         # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
         st.session_state.data_ready = True
@@ -121,7 +122,9 @@ if st.button("🖼 이미지 크롤링 실행"):
 if "data_ready" not in st.session_state:
     st.stop()  # 🚀 사용자가 링크 입력 후 실행되도록 중단
 
-get_api_key()
+if "api_key_checked" not in st.session_state:
+    get_api_key()
+    st.session_state.api_key_checked = True
 
 # ✅ HTML 파일이 있는 폴더 경로
 html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
@@ -178,14 +181,19 @@ qa_chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": prompt_template}
 )
 
-user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", placeholder="ex)배송이 얼마나 걸려?")
+user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", placeholder="ex) 배송이 얼마나 걸려?")
+
+if "answer" not in st.session_state:
+    st.session_state.answer = None  # 처음에는 답변 없음
 
 if st.button("질문하기"):
     if user_input:
         with st.spinner("🔄 질문 처리 중..."):
             response = qa_chain.invoke({"query": user_input})
-            answer = response.get("result")
-        st.markdown(f"📌 답변 결과: \n\n{answer}")
+            st.session_state.answer = response.get("result")
+            
+        if st.session_state.answer:
+            st.markdown(f"📌 **답변:** \n\n{st.session_state.answer}")
     
     else:
         st.error("❌ 질문을 입력하세요!")
