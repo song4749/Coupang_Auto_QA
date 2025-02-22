@@ -13,6 +13,11 @@ from dotenv import load_dotenv
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 
+# ✅ HTML 파일이 있는 폴더 경로
+html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
+
+# ✅ OpenAI Embeddings 설정
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 def get_api_key():
     # 환경 변수 가져오기
@@ -43,7 +48,7 @@ def run_ocr():
         st.error(f"❌ OCR 오류 발생: {e}")
 
 
-@st.cache_resource
+# @st.cache_resource
 def load_vector_store():
     vectorstore = None  
 
@@ -84,17 +89,17 @@ def load_vector_store():
 
 # ✅ 벡터 DB 삭제 함수
 def delete_vector_db():
-    """세션이 종료될 때 벡터 DB 삭제"""
+    """벡터 DB 삭제 함수"""
     if os.path.exists("faiss_index"):
         shutil.rmtree("faiss_index")
-        print("🗑 세션 종료 감지 - 벡터 DB 삭제 완료!")
+        print("🗑 벡터 DB 삭제 완료!")
 
 
-# ✅ Streamlit 세션 상태 확인 및 벡터 DB 삭제 로직 적용
-if "session_active" not in st.session_state:
-    # 🚀 세션이 새로 시작됨 (즉, 새로고침 또는 페이지 닫기 후 다시 접속한 경우)
-    st.cache_resource.clear()
-    delete_vector_db()  # ✅ 벡터 DB 삭제 실행
+# # ✅ Streamlit 세션 상태 확인 및 벡터 DB 삭제 로직 적용
+# if "session_active" not in st.session_state:
+#     # 🚀 세션이 새로 시작됨 (즉, 새로고침 또는 페이지 닫기 후 다시 접속한 경우)
+#     st.cache_resource.clear()
+#     delete_vector_db()  # ✅ 벡터 DB 삭제 실행
     
 
 # Streamlit UI
@@ -105,6 +110,10 @@ link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder=
 
 if st.button("🖼 이미지 크롤링 실행"):
     if link:
+        # ✅ 기존 벡터 DB 삭제 후 초기화
+        delete_vector_db()
+        st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
+
         with st.spinner("🔄 이미지 가져오는 중..."):
             run_crawler(link)
         st.toast("✅ 이미지 크롤링 완료!")
@@ -113,6 +122,14 @@ if st.button("🖼 이미지 크롤링 실행"):
             run_ocr()
         st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
 
+        # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
+        vectorstore = load_vector_store()
+
+        if vectorstore:
+            st.session_state.vectorstore = vectorstore
+        else:
+            st.error("⚠️ 벡터 DB 생성 실패: OCR 변환된 문서가 없습니다.")
+        
         # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
         st.session_state.data_ready = True
 
@@ -126,16 +143,9 @@ if "api_key_checked" not in st.session_state:
     get_api_key()
     st.session_state.api_key_checked = True
 
-# ✅ HTML 파일이 있는 폴더 경로
-html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
 
-# ✅ OpenAI Embeddings 설정
-embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-
-# ✅ 벡터 데이터베이스 로드 (캐싱 적용)
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = load_vector_store()
-vectorstore = st.session_state.vectorstore
+# ✅ 벡터 데이터베이스 로드
+vectorstore = st.session_state.vectorstore if "vectorstore" in st.session_state else load_vector_store()
 
 # ✅ OpenAI LLM (GPT-4 Turbo) 설정
 llm = ChatOpenAI(model_name="gpt-4o", temperature=0.3)
@@ -179,14 +189,14 @@ qa_chain = RetrievalQA.from_chain_type(
     retriever=retriever,
     return_source_documents=False,  # 참고한 문서도 함께 반환
     chain_type_kwargs={"prompt": prompt_template}
-)
+) if retriever else None
 
 user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", placeholder="ex) 배송이 얼마나 걸려?")
 
 if "answer" not in st.session_state:
     st.session_state.answer = None  # 처음에는 답변 없음
 
-if st.button("질문하기"):
+if st.button("질문하기") and qa_chain:
     if user_input:
         with st.spinner("🔄 질문 처리 중..."):
             response = qa_chain.invoke({"query": user_input})
