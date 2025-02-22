@@ -1,8 +1,10 @@
 import streamlit as st
-import streamlit as st
 import subprocess
 import shutil
 import os
+import json
+import time
+import requests
 from langchain_community.document_loaders import BSHTMLLoader
 from langchain_community.vectorstores import FAISS
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -18,6 +20,12 @@ html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
 
 # ✅ OpenAI Embeddings 설정
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+# 🚨 크롤링 제한 설정
+MAX_CRAWL_ATTEMPTS = 3  # 최대 3번
+RESET_TIME = 2 * 60 * 60  # 2시간 (초 단위)
+CRAWL_LOG_FILE = "user_ip_data.json"  # 사용자 크롤링 기록을 저장할 JSON 파일
+
 
 def get_api_key():
     # 환경 변수 가져오기
@@ -95,6 +103,75 @@ def delete_vector_db():
         print("🗑 벡터 DB 삭제 완료!")
 
 
+# ✅ JSON 파일이 없으면 자동 생성
+def initialize_crawl_data():
+    if not os.path.exists(CRAWL_LOG_FILE):
+        with open(CRAWL_LOG_FILE, "w") as file:
+            json.dump({}, file)  # 빈 JSON 객체 생성
+        print(f"📂 {CRAWL_LOG_FILE} 파일이 생성되었습니다.")
+
+
+# ✅ JSON 파일에서 크롤링 데이터 로드
+def load_crawl_data():
+    initialize_crawl_data()  # 파일이 없으면 생성
+    try:
+        with open(CRAWL_LOG_FILE, "r") as file:
+            return json.load(file)
+    except json.JSONDecodeError:
+        print("⚠️ JSON 파일이 손상되었습니다. 초기화합니다.")
+        save_crawl_data({})  # 손상된 경우 초기화
+        return {}
+
+
+# ✅ JSON 파일에 크롤링 데이터 저장
+def save_crawl_data(data):
+    with open(CRAWL_LOG_FILE, "w") as file:
+        json.dump(data, file)
+
+
+def get_user_ip():
+    try:
+        response = requests.get("https://api64.ipify.org?format=json", timeout=5)
+        if response.status_code == 200:
+            return response.json().get("ip", "unknown")
+    except requests.RequestException:
+        pass  # 오류 발생 시 기본값 반환
+    return "unknown"
+    
+
+# ✅ IP별 크롤링 횟수 관리
+def can_crawl(user_ip):
+    crawl_data = load_crawl_data()
+    now = time.time()
+
+    # IP별 데이터가 없으면 초기화
+    user_data = crawl_data.get(user_ip, {"count": 0, "last_time": now})
+
+    # 2시간 경과 여부 확인
+    if now - user_data["last_time"] > RESET_TIME:
+        user_data["count"] = 0  # 크롤링 횟수 초기화
+        user_data["last_time"] = now  # 시간 갱신
+        crawl_data[user_ip] = user_data
+        save_crawl_data(crawl_data)
+
+    remaining_attempts = MAX_CRAWL_ATTEMPTS - user_data["count"]
+    return user_data["count"] < MAX_CRAWL_ATTEMPTS, remaining_attempts  # 크롤링 가능 여부 반환
+    
+
+# ✅ 버튼 클릭 시에만 크롤링 횟수 증가하는 함수
+def update_crawl_count(user_ip):
+    crawl_data = load_crawl_data()
+    now = time.time()
+
+    if user_ip in crawl_data:
+        crawl_data[user_ip]["count"] += 1  # ✅ 버튼 클릭 시에만 크롤링 횟수 증가
+        crawl_data[user_ip]["last_time"] = now  # 마지막 크롤링 시간 업데이트
+    else:
+        crawl_data[user_ip] = {"count": 1, "last_time": now}  # 새 사용자 추가
+
+    save_crawl_data(crawl_data)  # JSON 파일 저장
+
+
 # # ✅ Streamlit 세션 상태 확인 및 벡터 DB 삭제 로직 적용
 # if "session_active" not in st.session_state:
 #     # 🚀 세션이 새로 시작됨 (즉, 새로고침 또는 페이지 닫기 후 다시 접속한 경우)
@@ -102,39 +179,74 @@ def delete_vector_db():
 #     delete_vector_db()  # ✅ 벡터 DB 삭제 실행
     
 
+# # ✅ 세션 상태에서 크롤링 횟수 관리 (최초 실행 시 초기화)
+# if "crawl_count" not in st.session_state:
+#     st.session_state.crawl_count = 0
+
 # Streamlit UI
 st.title("쿠팡 자동응답 시스템")
 st.write("쿠팡 상품 링크와 관련 질문을 입력하시면 자동으로 답변해 드립니다!")
+st.warning("⚠️ 주의: 쿠팡에서 동일 ip로 반복된 접속을 할경우 ip를 차단할 가능성이 있습니다. 검색 횟수가 3번으로 제한됩니다.")
+
+initialize_crawl_data()
+
+# 사용자 IP 가져오기
+user_ip = get_user_ip()
+st.info(f"📌 현재 IP: `{user_ip}`")
 
 link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder="https://www.coupang.com/vp/products/123456...")
 
-if st.button("🖼 이미지 크롤링 실행"):
-    if link:
-        # ✅ 기존 벡터 DB 삭제 후 초기화
-        delete_vector_db()
-        st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
+# 크롤링 가능 여부 확인
+can_crawl_now, remaining_attempts = can_crawl(user_ip)
 
-        with st.spinner("🔄 이미지 가져오는 중..."):
-            run_crawler(link)
-        st.toast("✅ 이미지 크롤링 완료!")
+# ✅ UI에 남은 크롤링 횟수를 표시할 공간 만들기
+remaining_attempts_display = st.empty()
+remaining_attempts_display.write(f"🔹 남은 크롤링 횟수: {remaining_attempts}회")
 
-        with st.spinner("🔄 이미지 변환 중..."):
-            run_ocr()
-        st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
+if can_crawl_now:
+    if st.button("🖼 이미지 크롤링 실행"):
+        if link:
+            # ✅ 버튼을 클릭했을 때만 크롤링 횟수 증가
+            update_crawl_count(user_ip)
 
-        # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
-        vectorstore = load_vector_store()
+            # ✅ 남은 크롤링 횟수를 즉시 업데이트
+            can_crawl_now, remaining_attempts = can_crawl(user_ip)
 
-        if vectorstore:
-            st.session_state.vectorstore = vectorstore
+            # ✅ 기존 `st.write()`를 지우고 새로운 값 출력
+            remaining_attempts_display.empty()  # 기존 UI 삭제
+            remaining_attempts_display.write(f"🔹 남은 크롤링 횟수: {remaining_attempts}회")
+
+            if remaining_attempts == 0:
+                st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
+
+            # ✅ 기존 벡터 DB 삭제 후 초기화
+            delete_vector_db()
+            st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
+
+            # with st.spinner("🔄 이미지 가져오는 중..."):
+            #     run_crawler(link)
+            # st.toast("✅ 이미지 크롤링 완료!")
+
+            with st.spinner("🔄 이미지 변환 중..."):
+                run_ocr()
+            st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
+
+            # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
+            vectorstore = load_vector_store()
+
+            if vectorstore:
+                st.session_state.vectorstore = vectorstore
+            else:
+                st.error("⚠️ 데이터 생성 실패: 링크가 올바른지 확인해 주세요")
+            
+            # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
+            st.session_state.data_ready = True
+
         else:
-            st.error("⚠️ 벡터 DB 생성 실패: OCR 변환된 문서가 없습니다.")
-        
-        # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
-        st.session_state.data_ready = True
-
-    else:
-        st.error("❌ 링크를 입력하세요!")
+            st.error("❌ 링크를 입력하세요!")
+else:
+    # 🚨 크롤링 횟수 초과 시 경고 메시지 표시
+    st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
 
 if "data_ready" not in st.session_state:
     st.stop()  # 🚀 사용자가 링크 입력 후 실행되도록 중단
