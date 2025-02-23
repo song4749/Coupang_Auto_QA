@@ -13,12 +13,12 @@ save_folder = "download_images"
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 
-# ✅ 명령줄 인자로 URL을 받기
-if len(sys.argv) < 2:
-    print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
-    sys.exit(1)
+# # ✅ 명령줄 인자로 URL을 받기
+# if len(sys.argv) < 2:
+#     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
+#     sys.exit(1)
 
-url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
+# url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
 
 def get_html(url):
@@ -77,7 +77,9 @@ def download_images(image_urls):
     """여러 개의 이미지 다운로드 후 저장"""
     for i, img_url in enumerate(image_urls, 1):
         # 저장 경로 설정 (이미지 확장자 유지)
-        ext = img_url.split(".")[-1]  # 확장자 추출 (jpg, png 등)
+        ext = img_url.split(".")[-1].split("?")[0]  # 확장자 추출 (jpg, png 등, URL에 ? 붙어 있는 경우 제거)
+        if ext.lower() not in ["jpg", "jpeg", "png"]:  # 확장자가 이상하면 기본 jpg 사용
+            ext = "jpg"
         save_path = os.path.join(save_folder, f"image_{i}.{ext}")
 
         try:
@@ -85,16 +87,21 @@ def download_images(image_urls):
             response = requests.get(img_url, stream=True)
             if response.status_code == 200:
                 image = Image.open(BytesIO(response.content))
-                image.save(save_path)
-                print(f"✅ {i}. 이미지 저장 완료")
+
+                # ✅ RGBA 또는 P 모드 이미지는 RGB로 변환 후 저장
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+
+                image.save(save_path)  # 변환된 이미지 저장
+                print(f"✅ {i}. 이미지 저장 완료: {save_path}")
             else:
-                print(f"❌ {i}. 이미지 저장 실패")
+                print(f"❌ {i}. 이미지 저장 실패: {img_url}")
         except Exception as e:
             print(f"❌ {i}. 오류 발생: {e}")
 
 
 # ✅ 쿠팡 제품 URL
-# url = "https://www.coupang.com/vp/products/7487768421?itemId=19573765359&vendorItemId=86681495158&q=%EC%84%B8%ED%83%81%EA%B8%B0&itemsCount=36&searchId=656044fb6519252&rank=6&searchRank=6&isAddedCart="
+url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
 html_source = get_html(url)
 
 # ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출
