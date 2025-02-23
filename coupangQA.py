@@ -203,9 +203,9 @@ if can_crawl_now:
             delete_vector_db()
             st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
 
-            # with st.spinner("🔄 이미지 가져오는 중..."):
-            #     subprocess.run(["python", "jpg_crowling.py", link], check=True)
-            # st.toast("✅ 이미지 크롤링 완료!")
+            with st.spinner("🔄 이미지 가져오는 중..."):
+                subprocess.run(["python", "jpg_crowling.py", link], check=True)
+            st.toast("✅ 이미지 크롤링 완료!")
 
             with st.spinner("🔄 이미지 변환 중..."):
                 subprocess.run(["python", "jpg2text_run.py"], check=True)
