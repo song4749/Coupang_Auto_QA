@@ -110,16 +110,23 @@ def save_crawl_data(data):
 
 
 def get_user_ip():
-    # 🚀 X-Forwarded-For 헤더를 이용하여 사용자 IP 가져오기
-    if "HTTP_X_FORWARDED_FOR" in st.query_params:
-        return st.query_params["HTTP_X_FORWARDED_FOR"]
-    
+    """클라이언트(사용자)의 실제 IP를 가져오는 함수"""
+
+    # 🚀 최신 Streamlit 방식으로 query_params 사용
+    headers = st.query_params
+
+    # 🌍 X-Forwarded-For 헤더에서 사용자 IP 가져오기 (프록시 사용 시)
+    if "X-Forwarded-For" in headers:
+        return headers["X-Forwarded-For"].split(",")[0]  # 첫 번째 IP가 실제 사용자 IP
+
+    # 🌍 외부 API를 사용해 사용자 IP 가져오기 (프록시가 없을 경우)
     try:
         response = requests.get("https://api64.ipify.org?format=json", timeout=5)
         if response.status_code == 200:
             return response.json().get("ip", "unknown")
     except requests.RequestException:
         pass  # 오류 발생 시 기본값 반환
+
     return "unknown"
     
 
