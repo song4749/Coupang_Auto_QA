@@ -36,26 +36,6 @@ def get_api_key():
         st.toast("✅ OpenAI API 키가 정상적으로 로드되었습니다.")
 
 
-# ✅ 크롤링 실행 함수
-def run_crawler(link):
-    """📌 jpg_crowling.py 실행 (상품 링크에서 이미지 크롤링)"""
-    try:
-        subprocess.run(["python", "jpg_crowling.py", link], check=True)
-
-    except Exception as e:
-        st.error(f"❌ 크롤링 오류 발생: {e}")
-
-
-# ✅ OCR 실행 함수
-def run_ocr():
-    """📌 jpg2text.ipynb 실행 (이미지 → HTML 변환)"""
-    try:
-        subprocess.run(["python", "jpg2text_run.py"], check=True)
-
-    except Exception as e:
-        st.error(f"❌ OCR 오류 발생: {e}")
-
-
 # @st.cache_resource
 def load_vector_store():
     vectorstore = None  
@@ -186,7 +166,7 @@ def update_crawl_count(user_ip):
 # Streamlit UI
 st.title("쿠팡 자동응답 시스템")
 st.write("쿠팡 상품 링크와 관련 질문을 입력하시면 자동으로 답변해 드립니다!")
-st.warning("⚠️ 주의: 쿠팡에서 동일 ip로 반복된 접속을 할경우 ip를 차단할 가능성이 있습니다. 검색 횟수가 3번으로 제한됩니다.")
+st.warning("⚠️ 주의: 쿠팡에서 동일 ip로 반복된 접속을 할 경우 ip를 차단할 가능성이 있습니다. 검색 횟수가 3번으로 제한됩니다.")
 
 initialize_crawl_data()
 
@@ -224,23 +204,26 @@ if can_crawl_now:
             st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
 
             # with st.spinner("🔄 이미지 가져오는 중..."):
-            #     run_crawler(link)
+            #     subprocess.run(["python", "jpg_crowling.py", link], check=True)
             # st.toast("✅ 이미지 크롤링 완료!")
 
             with st.spinner("🔄 이미지 변환 중..."):
-                run_ocr()
+                subprocess.run(["python", "jpg2text_run.py"], check=True)
             st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
 
-            # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
-            vectorstore = load_vector_store()
+            with st.spinner("🔄 정보 저장 중..."):
+                # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
+                vectorstore = load_vector_store()
 
             if vectorstore:
                 st.session_state.vectorstore = vectorstore
             else:
-                st.error("⚠️ 데이터 생성 실패: 링크가 올바른지 확인해 주세요")
+                st.error("⚠️ 데이터 생성 실패: 링크가 올바른지 확인해 주세요.")
             
             # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
             st.session_state.data_ready = True
+
+            st.toast("✅ 저장 완료! 질문받을 준비가 되었습니다.")
 
         else:
             st.error("❌ 링크를 입력하세요!")
