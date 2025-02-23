@@ -110,6 +110,10 @@ def save_crawl_data(data):
 
 
 def get_user_ip():
+    # 🚀 X-Forwarded-For 헤더를 이용하여 사용자 IP 가져오기
+    if "HTTP_X_FORWARDED_FOR" in st.query_params:
+        return st.query_params["HTTP_X_FORWARDED_FOR"]
+    
     try:
         response = requests.get("https://api64.ipify.org?format=json", timeout=5)
         if response.status_code == 200:
@@ -172,7 +176,7 @@ initialize_crawl_data()
 
 # 사용자 IP 가져오기
 user_ip = get_user_ip()
-st.info(f"📌 현재 IP: `{user_ip}`")
+st.info(f"📌 현재 사용자의 IP: `{user_ip}`")
 
 link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder="https://www.coupang.com/vp/products/123456...")
 
