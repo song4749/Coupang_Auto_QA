@@ -24,7 +24,7 @@ if not os.path.exists(save_folder):
 def get_html(url):
     """Playwright를 사용해 HTML을 가져오는 함수"""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)  # 브라우저 보이게 실행 (디버깅 가능)
+        browser = p.chromium.launch(headless=False, args=["--no-sandbox", "--disable-gpu"])  # 브라우저 보이게 실행 (디버깅 가능)
         context = browser.new_context()
         page = context.new_page()
 
