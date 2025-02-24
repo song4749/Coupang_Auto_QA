@@ -149,7 +149,7 @@ async def process_images_and_ocr_async():
     image_files = [
         os.path.join(save_folder, img) 
         for img in os.listdir(save_folder) 
-        if img.endswith((".jpg", ".png", ".jpeg"))
+        if img.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg", ".tiff", ".JPG"))
     ]
 
     async with aiohttp.ClientSession() as session:
@@ -247,7 +247,7 @@ async def correct_text_with_openai(input_text):
                  이 문서는 RAG 기반 검색 데이터로 사용할 것입니다.
                  따라서 검색 최적화를 위해 다음과 같이 정리해 주세요.
 
-                 1. **문서의 원래 의미를 유지하면서 문장을 다듬어 가독성을 높이세요.**  
+                 1. **문장을 최대한 변형시키지 말고 다듬어서 가독성을 높이세요.**  
                  2. **표(Table) 데이터는 원본 그대로 유지하세요.** (Markdown 표 `|` 형식 유지)  
                  3. **불필요한 중복 문장 및 공백을 제거하세요.**  
                  4. **문서의 계층 구조(제목, 소제목)를 유지하여 쉽게 검색할 수 있도록 하세요.**   
