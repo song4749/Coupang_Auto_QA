@@ -3,8 +3,6 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
 import requests
-import time
-import random
 from PIL import Image
 from io import BytesIO
 
@@ -12,6 +10,8 @@ from io import BytesIO
 sys.stdout.reconfigure(encoding="utf-8")
 
 save_folder = "download_images"
+main_image_folder = "main_image"
+html_folder = "ocr_texts"
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 
@@ -57,7 +57,7 @@ def extract_filtered_images(html):
     """HTML에서 'subType-IMAGE' 클래스 내부의 jpg, png 이미지 URL만 추출"""
     soup = BeautifulSoup(html, "html.parser")
 
-    # 'type-IMAGE_NO_SPACE' 내의 'subType-IMAGE' 찾기
+    # 'subType-IMAGE','subType-TEXT' 찾기
     image_containers = soup.select("div.subType-IMAGE, div.subType-TEXT")
 
     image_urls = []
@@ -111,6 +111,68 @@ def download_images(image_urls):
             print(f"❌ {i}. 오류 발생: {e}")
 
 
+def product_image_download(html):
+    soup = BeautifulSoup(html, "html.parser")
+    img_tag = soup.find("img", class_="prod-image__detail")
+
+    if img_tag:
+        img_url = "https:" + img_tag["src"]  # src 값이 //로 시작하므로 https:를 붙여야 함
+
+        img_response = requests.get(img_url)
+
+        if img_response.status_code == 200:
+
+            # 폴더가 존재하지 않으면 생성
+            if not os.path.exists(main_image_folder):
+                os.makedirs(main_image_folder)
+
+            image_path = os.path.join(main_image_folder, "main_image.jpg")
+
+            with open(image_path, "wb") as f:
+                f.write(img_response.content)
+            print("이미지 저장 완료: main_image.jpg")
+        else:
+            print("이미지 다운로드 실패")
+    else:
+        print("이미지를 찾을 수 없음")
+
+
+def basic_information(html):
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table", class_="prod-delivery-return-policy-table essential-info-table")
+
+    if table:
+        if not os.path.exists(html_folder):
+            os.makedirs(html_folder)
+        
+        file_path = os.path.join(html_folder, "basic_data.html")
+
+        # 테이블 HTML 저장
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(str(table))
+
+        print(f"테이블 HTML 저장 완료: {file_path}")
+    else:
+        print("테이블을 찾을 수 없음")
+
+
+def delibery_data(html):
+    soup = BeautifulSoup(html, "html.parser")
+    li_element = soup.find_all("li", class_="product-etc tab-contents__content etc-new-style")
+
+    if li_element:
+        file_path = os.path.join(html_folder, "li_data.html")
+
+        # 모든 <li> 태그를 하나의 HTML 파일에 저장
+        with open(file_path, "w", encoding="utf-8") as f:
+            for li in li_element:
+                f.write(str(li) + "\n")  # HTML 그대로 저장 + 줄바꿈 추가
+
+        print(f"<li> HTML 저장 완료: {file_path}")
+    else:
+        print("<li> 태그를 찾을 수 없음")
+
+
 # ✅ 쿠팡 제품 URL
 url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
 html_source = get_html(url)
@@ -123,3 +185,10 @@ print("총 이미지 개수:", len(filtered_image_urls))
 
 # ✅ 이미지 다운로드 실행
 download_images(filtered_image_urls)
+
+# 메인 이미지 다운로드
+product_image_download(html_source)
+
+basic_information(html_source)
+
+delibery_data(html_source)
