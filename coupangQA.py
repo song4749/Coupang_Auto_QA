@@ -123,10 +123,17 @@ def get_user_ip() -> str:
         session_info = runtime.get_instance().get_client(ctx.session_id)
         if session_info is None:
             return "클라이언트 정보 없음"
+        
+        # ✅ 프록시 서버(Nginx, Caddy) 뒤에서 실행될 경우
+        user_ip = session_info.request.headers.get("X-Forwarded-For")
+        if user_ip:
+            return user_ip.split(",")[0]  # 가장 앞의 IP가 실제 클라이언트 IP
+        
+        # ✅ 직접 실행 중인 경우
+        return session_info.request.remote_ip
+    
     except Exception as e:
         return f"오류 발생: {e}"
-
-    return session_info.request.remote_ip
 
 
 # ✅ IP별 크롤링 횟수 관리
