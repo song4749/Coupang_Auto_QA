@@ -1,16 +1,20 @@
 import streamlit as st
+from streamlit import runtime
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 import subprocess
 import shutil
 import os
 import json
 import time
-import requests
 from langchain_community.document_loaders import BSHTMLLoader
 from langchain_community.vectorstores import FAISS
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
+import sys
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -106,18 +110,24 @@ def load_crawl_data():
 # ✅ JSON 파일에 크롤링 데이터 저장
 def save_crawl_data(data):
     with open(CRAWL_LOG_FILE, "w") as file:
-        json.dump(data, file)
+        json.dump(data, file, indent=4)
 
 
-def get_user_ip():
-    """클라이언트(사용자)의 실제 공인 IP 가져오기"""
+def get_user_ip() -> str:
+    """클라이언트(사용자)의 실제 IP 가져오기"""
     try:
-        response = requests.get("https://api64.ipify.org?format=json", timeout=5)
-        if response.status_code == 200:
-            return response.json().get("ip", "unknown")
-    except requests.RequestException:
-        return "unknown"
-    
+        ctx = get_script_run_ctx()
+        if ctx is None:
+            return "세션 없음"
+
+        session_info = runtime.get_instance().get_client(ctx.session_id)
+        if session_info is None:
+            return "클라이언트 정보 없음"
+    except Exception as e:
+        return f"오류 발생: {e}"
+
+    return session_info.request.remote_ip
+
 
 # ✅ IP별 크롤링 횟수 관리
 def can_crawl(user_ip):
@@ -166,7 +176,7 @@ def update_crawl_count(user_ip):
 # Streamlit UI
 st.title("쿠팡 자동응답 시스템")
 st.write("쿠팡 상품 링크와 관련 질문을 입력하시면 자동으로 답변해 드립니다!")
-st.warning("⚠️ 주의: 쿠팡에서 동일 ip로 반복된 접속을 할 경우 ip를 차단할 가능성이 있습니다. 5분에 한번씩 링크 입력이 가능합니다.")
+st.warning("⚠️ 주의: 쿠팡에서는 동일 IP로 반복적인 요청이 발생할 경우, 접속이 제한될 수 있습니다. 검색은 최대 3번까지 가능하며, 이후에는 2시간이 지난 후 다시 이용하실 수 있습니다.")
 
 initialize_crawl_data()
 

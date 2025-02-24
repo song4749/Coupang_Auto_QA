@@ -1,7 +1,6 @@
 import os
 import cv2
 import numpy as np
-import requests
 import openai
 from datetime import datetime
 from dotenv import load_dotenv
@@ -9,6 +8,10 @@ from bs4 import BeautifulSoup
 import aiofiles
 import asyncio
 import aiohttp
+import sys
+import io
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -85,16 +88,20 @@ async def preprocess_image_async(image_path):
     return preprocessed_path  # 전처리된 이미지 경로 반환
 
 
-async def process_ocr_to_html_async(image_path, session):
+async def process_ocr_to_html_async(image_path, session):   # upstage ocr
     """📌 비동기 OCR 수행 및 HTML 저장"""
     async with aiofiles.open(image_path, "rb") as image_file:
         image_data = await image_file.read()
-
+    
     # 🔹 Multipart FormData 생성
     form_data = aiohttp.FormData()
     form_data.add_field("ocr", "force")  # OCR 강제 수행 옵션
     form_data.add_field("model", "document-parse")  # 모델 선택
-    form_data.add_field("document", image_data, filename=os.path.basename(image_path), content_type="image/jpeg")
+    form_data.add_field("document", 
+                        image_data, 
+                        filename=os.path.basename(image_path), 
+                        content_type="image/jpeg"
+                        )
 
     headers = {"Authorization": f"Bearer {API_KEY}"}  # Content-Type은 자동 설정됨
 
