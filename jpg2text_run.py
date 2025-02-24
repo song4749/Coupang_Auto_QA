@@ -9,7 +9,6 @@ import aiofiles
 import asyncio
 import aiohttp
 import sys
-import io
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -109,18 +108,21 @@ async def process_ocr_to_html_async(image_path, session):   # upstage ocr
         async with session.post(UPLOAD_URL, headers=headers, data=form_data) as response:
             if response.status != 200:
                 print(f"❌ OCR 오류: {response.status}, {await response.text()}")
+                await asyncio.to_thread(os.remove, image_path)  # ✅ OCR 실패해도 이미지 삭제
                 return None
 
             ocr_data = await response.json()
 
     except Exception as e:
         print(f"❌ 비동기 OCR 요청 실패: {e}")
+        await asyncio.to_thread(os.remove, image_path)  # ✅ 예외 발생 시에도 이미지 삭제
         return None
 
     # 🔹 OCR 결과 확인 및 HTML 파일 저장
     html_content = ocr_data.get("content", {}).get("html", "")
     if not html_content:
         print(f"⚠ OCR 결과가 없습니다! API 응답 확인 필요.")
+        await asyncio.to_thread(os.remove, image_path)  # ✅ OCR 결과가 없어도 이미지 삭제
         return None
 
     os.makedirs(text_folder, exist_ok=True)

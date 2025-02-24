@@ -3,6 +3,8 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
 import requests
+import time
+import random
 from PIL import Image
 from io import BytesIO
 
@@ -20,6 +22,11 @@ if len(sys.argv) < 2:
 
 url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
+]
 
 def get_html(url):
     """Playwright를 사용해 HTML을 가져오는 함수"""
@@ -28,10 +35,15 @@ def get_html(url):
         context = browser.new_context()
         page = context.new_page()
 
-        # 사용자 에이전트 추가 (403 방지)
-        page.set_extra_http_headers({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.0.0 Safari/537.36'
-        })
+        headers = {
+            'User-Agent': random.choice(USER_AGENTS),  # ✅ User-Agent 랜덤 선택
+            'Accept-Language': 'en-US,en;q=0.9,ko;q=0.8',
+            'Referer': 'https://www.google.com/',  # ✅ 구글에서 들어온 것처럼 보이게 설정
+        }
+        page.set_extra_http_headers(headers)
+
+        # ✅ 랜덤한 대기 시간 추가 (1.5 ~ 5초)
+        time.sleep(random.uniform(1.5, 5.0))
 
         # 페이지 이동 (HTML만 로드되면 가져오기)
         page.goto(url, timeout=60000, wait_until="load")
