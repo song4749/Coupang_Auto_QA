@@ -1,7 +1,6 @@
 import streamlit as st
 from streamlit import runtime
 from streamlit.runtime.scriptrunner import get_script_run_ctx
-import subprocess
 import shutil
 import os
 import json
@@ -26,7 +25,7 @@ html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 # 🚨 크롤링 제한 설정
-MAX_CRAWL_ATTEMPTS = 3  # 최대 3번
+MAX_CRAWL_ATTEMPTS = 30  # 최대 3번
 RESET_TIME = 2 * 60 * 60  # 2시간 (초 단위)
 CRAWL_LOG_FILE = "user_ip_data.json"  # 사용자 크롤링 기록을 저장할 JSON 파일
 
@@ -63,7 +62,6 @@ def load_vector_store():
 
                 # ✅ HTML 파일 삭제
                 os.remove(file_path)
-                print(f"🗑️ {filename} 삭제 완료!")
 
             except Exception as e:
                 print(f"❌ {filename} 처리 중 오류 발생: {e}")
@@ -85,6 +83,8 @@ def delete_vector_db():
     if os.path.exists("faiss_index"):
         shutil.rmtree("faiss_index")
         print("🗑 벡터 DB 삭제 완료!")
+    if os.path.exists("main_image"):
+        shutil.rmtree("main_image")
 
 
 # ✅ JSON 파일이 없으면 자동 생성
@@ -181,78 +181,108 @@ def update_crawl_count(user_ip):
 #     st.session_state.crawl_count = 0
 
 # Streamlit UI
-st.title("쿠팡 자동응답 시스템")
-st.write("쿠팡 상품 링크와 관련 질문을 입력하시면 자동으로 답변해 드립니다!")
-st.warning("⚠️ 주의: 쿠팡에서는 동일 IP로 반복적인 요청이 발생할 경우, 접속이 제한될 수 있습니다. 검색은 최대 3번까지 가능하며, 이후에는 2시간이 지난 후 다시 이용하실 수 있습니다.")
+st.markdown("<h1 style='text-align: center;'>쿠팡 상품문의 자동응답 시스템</h1>", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center; font-weight: 100'>쿠팡 상품 링크와 관련 문의를 입력하시면 자동으로 답변해 드립니다!<br><br><br></h5>", unsafe_allow_html=True)
+left, right = st.columns(2)
 
-initialize_crawl_data()
+# ✅ 오른쪽에 이미지 표시할 공간 미리 생성
+right_display_text = right.container()
+right_display_image = right.container()
 
-# 사용자 IP 가져오기
-user_ip = get_user_ip()
-st.info(f"📌 현재 사용자의 IP: `{user_ip}`")
+with right_display_text:
+    st.markdown("<span style='font-size: 18px; font-weight: bold;'>검색하신 상품:</span>", unsafe_allow_html=True)
 
-link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder="https://www.coupang.com/vp/products/123456...")
+with left:
+    st.warning("⚠️ 주의: 쿠팡에서는 동일 IP로 반복적인 요청이 발생할 경우, 접속이 제한될 수 있습니다. 검색은 최대 3번까지 가능하며, 이후에는 2시간이 지난 후 다시 이용하실 수 있습니다.")
 
-# 크롤링 가능 여부 확인
-can_crawl_now, remaining_attempts = can_crawl(user_ip)
+    initialize_crawl_data()
 
-# ✅ UI에 남은 크롤링 횟수를 표시할 공간 만들기
-remaining_attempts_display = st.empty()
-remaining_attempts_display.write(f"🔹 남은 크롤링 횟수: {remaining_attempts}회")
+    # 사용자 IP 가져오기
+    user_ip = get_user_ip()
 
-if can_crawl_now:
-    if st.button("🖼 이미지 크롤링 실행"):
-        if link:
-            # ✅ 버튼을 클릭했을 때만 크롤링 횟수 증가
-            update_crawl_count(user_ip)
+    st.info(f"📌 현재 사용자의 IP: `{user_ip}`")
 
-            # ✅ 남은 크롤링 횟수를 즉시 업데이트
-            can_crawl_now, remaining_attempts = can_crawl(user_ip)
+    link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder="https://www.coupang.com/vp/products/123456...")
 
-            # ✅ 기존 `st.write()`를 지우고 새로운 값 출력
-            remaining_attempts_display.empty()  # 기존 UI 삭제
-            remaining_attempts_display.write(f"🔹 남은 크롤링 횟수: {remaining_attempts}회")
+    # 크롤링 가능 여부 확인
+    can_crawl_now, remaining_attempts = can_crawl(user_ip)
 
-            if remaining_attempts == 0:
-                st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
+    # ✅ UI에 남은 크롤링 횟수를 표시할 공간 만들기
+    remaining_attempts_display = st.empty()
+    remaining_attempts_display.write(f"🔹 남은 크롤링 횟수: {remaining_attempts}회")
 
-            # ✅ 기존 벡터 DB 삭제 후 초기화
-            delete_vector_db()
-            st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
+with left:
+    if can_crawl_now:
+        if st.button("🖼 이미지 크롤링 실행"):
+            if link:
+                # ✅ 버튼을 클릭했을 때만 크롤링 횟수 증가
+                update_crawl_count(user_ip)
 
-            # with st.spinner("🔄 이미지 가져오는 중..."):
-            #     subprocess.run(["python", "jpg_crowling.py", link], check=True)
-            # st.toast("✅ 이미지 크롤링 완료!")
+                # ✅ 남은 크롤링 횟수를 즉시 업데이트
+                can_crawl_now, remaining_attempts = can_crawl(user_ip)
 
-            with st.spinner("🔄 이미지 변환 중..."):
-                subprocess.run(["python", "jpg2text_run.py"], check=True)
-            st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
+                # ✅ 기존 `st.write()`를 지우고 새로운 값 출력
+                remaining_attempts_display.empty()  # 기존 UI 삭제
+                remaining_attempts_display.write(f"🔹 남은 크롤링 횟수: {remaining_attempts}회")
 
-            with st.spinner("🔄 정보 저장 중..."):
-                # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
-                vectorstore = load_vector_store()
+                if remaining_attempts == 0:
+                    st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
 
-            if vectorstore:
-                st.session_state.vectorstore = vectorstore
+                # ✅ 기존 벡터 DB 삭제 후 초기화
+                delete_vector_db()
+                st.session_state.vectorstore = None  # 벡터 DB 캐시 제거
+
+                # ✅ jpg_crowling.py 실행 (이미지 크롤링)
+                with st.spinner("🔄 이미지 가져오는 중..."):
+                    with open("jpg_crowling.py", "r", encoding="utf-8") as f:
+                        code = f.read()
+                        exec(code)
+
+                st.toast("✅ 이미지 크롤링 완료!")
+
+                # 메인 사진, 이름 표시
+                with open("main_image/product_name.txt", "r", encoding="utf-8") as file:
+                    product_name = file.read().strip()
+                with right_display_text:
+                    st.markdown(f"<span style='font-size: 18px;'>{product_name}</span>", unsafe_allow_html=True)
+
+                with right_display_image:
+                    st.image("main_image/main_image.jpg", caption="검색된 상품 이미지", use_container_width=True)
+
+                # ✅ jpg2text_run.py 실행 (이미지 → 텍스트 변환)
+                with st.spinner("🔄 이미지 변환 중..."):
+                    with open("jpg2text_run.py", "r", encoding="utf-8") as f:
+                        code = f.read()
+                        exec(code)
+
+                st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
+
+                with st.spinner("🔄 정보 저장 중..."):
+                    # ✅ OCR 변환된 HTML 파일을 벡터 DB에 추가
+                    vectorstore = load_vector_store()
+
+                if vectorstore:
+                    st.session_state.vectorstore = vectorstore
+                else:
+                    st.error("⚠️ 데이터 생성 실패: 링크가 올바른지 확인해 주세요.")
+                
+                # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
+                st.session_state.data_ready = True
+
+                st.toast("✅ 저장 완료! 질문받을 준비가 되었습니다.")
+
             else:
-                st.error("⚠️ 데이터 생성 실패: 링크가 올바른지 확인해 주세요.")
-            
-            # ✅ 벡터 DB가 필요할 경우 세션 상태 업데이트
-            st.session_state.data_ready = True
-
-            st.toast("✅ 저장 완료! 질문받을 준비가 되었습니다.")
-
-        else:
-            st.error("❌ 링크를 입력하세요!")
-else:
-    # 🚨 크롤링 횟수 초과 시 경고 메시지 표시
-    st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
+                st.error("❌ 링크를 입력하세요!")
+    else:
+        # 🚨 크롤링 횟수 초과 시 경고 메시지 표시
+        st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
 
 if "data_ready" not in st.session_state:
     st.stop()  # 🚀 사용자가 링크 입력 후 실행되도록 중단
 
 if "api_key_checked" not in st.session_state:
-    get_api_key()
+    with left:
+        get_api_key()
     st.session_state.api_key_checked = True
 
 
@@ -303,19 +333,21 @@ qa_chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": prompt_template}
 ) if retriever else None
 
-user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", placeholder="ex) 배송이 얼마나 걸려?")
+with left:
+    user_input = st.text_area("✏️ 해당 상품에 관하여 궁금한 점을 물어봐 주세요", placeholder="ex) 배송이 얼마나 걸려?")
 
 if "answer" not in st.session_state:
     st.session_state.answer = None  # 처음에는 답변 없음
 
-if st.button("질문하기") and qa_chain:
-    if user_input:
-        with st.spinner("🔄 질문 처리 중..."):
-            response = qa_chain.invoke({"query": user_input})
-            st.session_state.answer = response.get("result")
-            
-        if st.session_state.answer:
-            st.markdown(f"📌 **답변:** \n\n{st.session_state.answer}")
-    
-    else:
-        st.error("❌ 질문을 입력하세요!")
+with left:
+    if st.button("질문하기") and qa_chain:
+        if user_input:
+            with st.spinner("🔄 질문 처리 중..."):
+                response = qa_chain.invoke({"query": user_input})
+                st.session_state.answer = response.get("result")
+                
+            if st.session_state.answer:
+                st.markdown(f"📌 **답변:** \n\n{st.session_state.answer}")
+        
+        else:
+            st.error("❌ 질문을 입력하세요!")

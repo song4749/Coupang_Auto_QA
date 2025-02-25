@@ -139,8 +139,6 @@ async def process_ocr_to_html_async(image_path, session):   # upstage ocr
 
     await asyncio.to_thread(os.remove, image_path)
 
-    print(f"✅ OCR 저장 완료: {output_path}")
-
     return output_path
 
 

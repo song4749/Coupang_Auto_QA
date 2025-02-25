@@ -15,13 +15,6 @@ html_folder = "ocr_texts"
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 
-# # ✅ 명령줄 인자로 URL을 받기
-# if len(sys.argv) < 2:
-#     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
-#     sys.exit(1)
-
-# url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
-
 
 def get_html(url):
     """Playwright를 사용해 HTML을 가져오는 함수"""
@@ -111,7 +104,7 @@ def download_images(image_urls):
             print(f"❌ {i}. 오류 발생: {e}")
 
 
-def product_image_download(html):
+def product_image_and_name_download(html):
     soup = BeautifulSoup(html, "html.parser")
     img_tag = soup.find("img", class_="prod-image__detail")
 
@@ -135,6 +128,14 @@ def product_image_download(html):
             print("이미지 다운로드 실패")
     else:
         print("이미지를 찾을 수 없음")
+
+    name = soup.find("h1", class_="prod-buy-header__title").text.strip()
+
+    name_path = os.path.join(main_image_folder, "product_name.txt")
+    if name:
+        with open(name_path, "w", encoding="utf-8") as file:
+            file.write(name)
+
 
 
 def basic_information(html):
@@ -173,22 +174,30 @@ def delibery_data(html):
         print("<li> 태그를 찾을 수 없음")
 
 
-# ✅ 쿠팡 제품 URL
-url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
-html_source = get_html(url)
+if __name__ == "__main__":
+    # # ✅ 명령줄 인자로 URL을 받기
+    # if len(sys.argv) < 2:
+    #     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
+    #     sys.exit(1)
 
-# ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출
-filtered_image_urls = extract_filtered_images(html_source)
+    # url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
-# ✅ 결과 출력
-print("총 이미지 개수:", len(filtered_image_urls))
+    # ✅ 쿠팡 제품 URL
+    url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
+    html_source = get_html(url)
 
-# ✅ 이미지 다운로드 실행
-download_images(filtered_image_urls)
+    # ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출
+    filtered_image_urls = extract_filtered_images(html_source)
 
-# 메인 이미지 다운로드
-product_image_download(html_source)
+    # ✅ 결과 출력
+    print("총 이미지 개수:", len(filtered_image_urls))
 
-basic_information(html_source)
+    # ✅ 이미지 다운로드 실행
+    download_images(filtered_image_urls)
 
-delibery_data(html_source)
+    # 메인 이미지, 필수 표기정보, 배송/교환/반품 안내 다운로드
+    product_image_and_name_download(html_source)
+
+    basic_information(html_source)
+
+    delibery_data(html_source)
