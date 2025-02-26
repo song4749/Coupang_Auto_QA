@@ -206,7 +206,7 @@ def copy_files(src_folder, dst_folder="."):
 # Streamlit UI
 st.markdown("<h1 style='text-align: center;'>쿠팡 상품문의 자동응답 시스템</h1>", unsafe_allow_html=True)
 st.markdown("<h5 style='text-align: center; font-weight: 100'>쿠팡 상품 링크와 관련 문의를 입력하시면 자동으로 답변해 드립니다!<br><br><br></h5>", unsafe_allow_html=True)
-left, right = st.columns([0.6, 0.4])
+left, right = st.columns([0.7, 0.3])
 
 if "product_name" not in st.session_state:
     st.session_state.product_name = None
