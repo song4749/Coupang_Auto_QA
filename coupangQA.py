@@ -206,7 +206,7 @@ def copy_files(src_folder, dst_folder="."):
 # Streamlit UI
 st.markdown("<h1 style='text-align: center;'>쿠팡 상품문의 자동응답 시스템</h1>", unsafe_allow_html=True)
 st.markdown("<h5 style='text-align: center; font-weight: 100'>쿠팡 상품 링크와 관련 문의를 입력하시면 자동으로 답변해 드립니다!<br><br><br></h5>", unsafe_allow_html=True)
-left, right = st.columns(2)
+left, right = st.columns([0.6, 0.4])
 
 if "product_name" not in st.session_state:
     st.session_state.product_name = None
@@ -326,7 +326,7 @@ with left:
                 st.toast("✅ 저장 완료! 질문받을 준비가 되었습니다.")
 
             else:
-                st.error("❌ 링크를 입력하세요!")
+                st.error("❌ 링크를 입력하세요! (Test 파일의 경우 아무거나 입력)")
     else:
         # 🚨 크롤링 횟수 초과 시 경고 메시지 표시
         st.error("🚨 크롤링 허용 횟수를 초과했습니다! 2시간 후 다시 시도해주세요.")
