@@ -1,4 +1,5 @@
 import streamlit as st
+import runpy
 
 st.set_page_config(layout="wide")
 
@@ -23,6 +24,7 @@ st.sidebar.title("판매자용 메뉴")
 if st.sidebar.button("상품문의 자동응답 시스템"):
     st.session_state.selected_page = "coupangQA"
     st.rerun()
+
 if st.sidebar.button("1-2"):
     st.session_state.selected_page = "1-2"
     st.rerun()
@@ -44,9 +46,7 @@ if st.sidebar.button("2-3"):
 
 # ✅ 선택된 페이지에 따라 실행 (사이드바는 그대로 유지됨)
 if st.session_state.selected_page == "coupangQA":
-    with open("coupangQA.py", "r", encoding="utf-8") as f:
-        code = f.read()
-        exec(code)  # coupangQA.py 실행
+    runpy.run_path("coupangQA.py")
 elif st.session_state.selected_page == "auto_review":
     with open("auto_review.py", "r", encoding="utf-8") as f:
         code = f.read()

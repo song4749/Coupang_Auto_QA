@@ -12,6 +12,8 @@ from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 import sys
+import subprocess
+import jpg2text_run
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -25,7 +27,7 @@ html_folder_path = "ocr_texts"  # 여러 개의 HTML 파일이 있는 폴더
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 # 🚨 크롤링 제한 설정
-MAX_CRAWL_ATTEMPTS = 30  # 최대 3번
+MAX_CRAWL_ATTEMPTS = 3  # 최대 3번
 RESET_TIME = 2 * 60 * 60  # 2시간 (초 단위)
 CRAWL_LOG_FILE = "user_ip_data.json"  # 사용자 크롤링 기록을 저장할 JSON 파일
 
@@ -83,8 +85,6 @@ def delete_vector_db():
     if os.path.exists("faiss_index"):
         shutil.rmtree("faiss_index")
         print("🗑 벡터 DB 삭제 완료!")
-    if os.path.exists("main_image"):
-        shutil.rmtree("main_image")
 
 
 # ✅ JSON 파일이 없으면 자동 생성
@@ -169,6 +169,29 @@ def update_crawl_count(user_ip):
     save_crawl_data(crawl_data)  # JSON 파일 저장
 
 
+def copy_files(src_folder, dst_folder="."):
+    """주어진 폴더의 모든 파일 및 하위 폴더를 복사"""
+    folders_to_clear = ["download_images", "main_image", "ocr_texts"]
+    for folder in folders_to_clear:
+        if os.path.exists(folder):  # ✅ 폴더 존재 확인
+            shutil.rmtree(folder)   # ✅ 폴더와 내부 모든 파일 삭제
+
+    if not os.path.exists(src_folder):  # ✅ 원본 폴더가 존재하는지 확인
+        st.error(f"❌ 원본 폴더 '{src_folder}'이(가) 존재하지 않습니다!")
+        return False
+
+    for item in os.listdir(src_folder):
+        src_path = os.path.join(src_folder, item)
+        dst_path = os.path.join(dst_folder, item)
+
+        if os.path.isdir(src_path):  # ✅ 폴더 복사
+            shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+        else:  # ✅ 파일 복사
+            shutil.copy2(src_path, dst_path)
+
+    return True
+
+
 # # ✅ Streamlit 세션 상태 확인 및 벡터 DB 삭제 로직 적용
 # if "session_active" not in st.session_state:
 #     # 🚀 세션이 새로 시작됨 (즉, 새로고침 또는 페이지 닫기 후 다시 접속한 경우)
@@ -185,6 +208,13 @@ st.markdown("<h1 style='text-align: center;'>쿠팡 상품문의 자동응답 �
 st.markdown("<h5 style='text-align: center; font-weight: 100'>쿠팡 상품 링크와 관련 문의를 입력하시면 자동으로 답변해 드립니다!<br><br><br></h5>", unsafe_allow_html=True)
 left, right = st.columns(2)
 
+if "product_name" not in st.session_state:
+    st.session_state.product_name = None
+if "product_image" not in st.session_state:
+    st.session_state.product_image = None
+if "image_displayed" not in st.session_state:
+    st.session_state.image_displayed = False
+
 # ✅ 오른쪽에 이미지 표시할 공간 미리 생성
 right_display_text = right.container()
 right_display_image = right.container()
@@ -193,14 +223,44 @@ with right_display_text:
     st.markdown("<span style='font-size: 18px; font-weight: bold;'>검색하신 상품:</span>", unsafe_allow_html=True)
 
 with left:
-    st.warning("⚠️ 주의: 쿠팡에서는 동일 IP로 반복적인 요청이 발생할 경우, 접속이 제한될 수 있습니다. 검색은 최대 3번까지 가능하며, 이후에는 2시간이 지난 후 다시 이용하실 수 있습니다.")
+    st.warning(
+        """
+        ⚠️ **주의:**  
+        쿠팡에서는 **동일 IP로 반복적인 요청이 발생할 경우**, 접속이 **제한될 수 있습니다**.  
+
+        🔹 **검색 가능 횟수:**  
+        - 최대 **3번까지 가능**  
+        - 이후에는 **2시간 후 다시 이용**해야 합니다.  
+
+        🚨 **만약 서버 IP가 차단되어 검색이 불가능한 경우**  
+        아래 **"Test" 버튼** 중 하나를 눌러 **미리 저장된 정보를 가져올 수 있습니다.**
+        """
+    )
+    
+    col1, col2, col3, col4 = st.columns([0.2, 0.2, 0.2, 0.4])
+    copy_success = False
+
+    with col1:
+        if st.button("Test - 냉장고"):
+            copy_success = copy_files("test/case1")
+
+    with col2:
+        if st.button("Test - 세탁기"):
+            copy_success = copy_files("test/case2")
+
+    with col3:
+        if st.button("Test - 청소기"):
+            copy_success = copy_files("test/case3")
+    
+    if copy_success:
+        st.success("✅ 테스트 데이터 준비 완료! 이미지 크롤링 실행 버튼을 눌러 주세요.")
 
     initialize_crawl_data()
 
     # 사용자 IP 가져오기
     user_ip = get_user_ip()
 
-    st.info(f"📌 현재 사용자의 IP: `{user_ip}`")
+    st.info(f"📌 현재 당신의 IP: `{user_ip}`")
 
     link = st.text_area("🔗 상품 판매링크를 입력하세요:", placeholder="https://www.coupang.com/vp/products/123456...")
 
@@ -234,26 +294,19 @@ with left:
 
                 # ✅ jpg_crowling.py 실행 (이미지 크롤링)
                 with st.spinner("🔄 이미지 가져오는 중..."):
-                    with open("jpg_crowling.py", "r", encoding="utf-8") as f:
-                        code = f.read()
-                        exec(code)
+                    subprocess.run(["python", "jpg_crowling.py", link])     # 이것도 import 를 하면 playwright 와 asyncio 가 충돌한다. 따라서 크롤링 코드는 별도의 프로세스로 실행
 
                 st.toast("✅ 이미지 크롤링 완료!")
 
                 # 메인 사진, 이름 표시
                 with open("main_image/product_name.txt", "r", encoding="utf-8") as file:
-                    product_name = file.read().strip()
-                with right_display_text:
-                    st.markdown(f"<span style='font-size: 18px;'>{product_name}</span>", unsafe_allow_html=True)
-
-                with right_display_image:
-                    st.image("main_image/main_image.jpg", caption="검색된 상품 이미지", use_container_width=True)
+                    st.session_state.product_name = file.read().strip()
+                st.session_state.product_image = "main_image/main_image.jpg"
+                st.session_state.image_displayed = True
 
                 # ✅ jpg2text_run.py 실행 (이미지 → 텍스트 변환)
                 with st.spinner("🔄 이미지 변환 중..."):
-                    with open("jpg2text_run.py", "r", encoding="utf-8") as f:
-                        code = f.read()
-                        exec(code)
+                    jpg2text_run.main()
 
                 st.toast("✅ 변환 완료! 데이터가 저장되었습니다.")
 
@@ -279,6 +332,11 @@ with left:
 
 if "data_ready" not in st.session_state:
     st.stop()  # 🚀 사용자가 링크 입력 후 실행되도록 중단
+
+if st.session_state.image_displayed and st.session_state.product_name and st.session_state.product_image:
+    with right:
+        st.markdown(f"<span style='font-size: 18px;'>{st.session_state.product_name}</span>", unsafe_allow_html=True)
+        st.image(st.session_state.product_image, caption="검색된 상품 이미지", use_container_width=True)
 
 if "api_key_checked" not in st.session_state:
     with left:

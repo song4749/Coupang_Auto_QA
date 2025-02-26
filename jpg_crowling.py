@@ -2,6 +2,7 @@ import sys
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
+import shutil
 import requests
 from PIL import Image
 from io import BytesIO
@@ -31,19 +32,27 @@ def get_html(url):
         # ✅ 랜덤한 대기 시간 추가 (1.5 ~ 5초)
         # time.sleep(random.uniform(1.5, 5.0))
 
-        # 페이지 이동 (HTML만 로드되면 가져오기)
-        page.goto(url, timeout=60000, wait_until="load")
+        try:
+            # 페이지 이동 (HTML만 로드되면 가져오기)
+            page.goto(url, timeout=60000, wait_until="load")
 
-        page.wait_for_selector("div.subType-IMAGE img, div.subType-TEXT img", timeout=20000)
+            if page.wait_for_selector("div.subType-IMAGE img, div.subType-TEXT img", timeout=20000):
 
-        # # ✅ 특정 요소가 나올 때까지 대기 (상품 이미지가 있는 div)
-        # page.wait_for_selector("div.subType-IMAGE", timeout=10000)
+                # # ✅ 특정 요소가 나올 때까지 대기 (상품 이미지가 있는 div)
+                # page.wait_for_selector("div.subType-IMAGE", timeout=10000)
 
-        # ✅ JavaScript 실행 후 동적으로 생성된 HTML 가져오기
-        html = page.evaluate("document.documentElement.outerHTML")
-
-        browser.close()
-        return html
+                # ✅ JavaScript 실행 후 동적으로 생성된 HTML 가져오기
+                html = page.evaluate("document.documentElement.outerHTML")
+                browser.close()
+                return html, True
+            else:
+                browser.close()
+                return None, False
+            
+        except Exception as e:
+            print(f"❌ 오류 발생: {e}")
+            browser.close()
+            return None, False
 
 
 def extract_filtered_images(html):
@@ -174,30 +183,43 @@ def delibery_data(html):
         print("<li> 태그를 찾을 수 없음")
 
 
-if __name__ == "__main__":
-    # # ✅ 명령줄 인자로 URL을 받기
-    # if len(sys.argv) < 2:
-    #     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
-    #     sys.exit(1)
+# ✅ 명령줄 인자로 URL을 받기
+if len(sys.argv) < 2:
+    print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
+    sys.exit(1)
 
-    # url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
+url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
-    # ✅ 쿠팡 제품 URL
-    url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
-    html_source = get_html(url)
+# url = "https://www.coupang.com/vp/products/5225707661?itemId=7344236763&vendorItemId=74635450600&sourceType=CATEGORY&categoryId=413252&isAddedCart="
 
-    # ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출
-    filtered_image_urls = extract_filtered_images(html_source)
+# ✅ 쿠팡 제품 URL
+html_source, S_or_F = get_html(url)
 
-    # ✅ 결과 출력
-    print("총 이미지 개수:", len(filtered_image_urls))
+# ✅ 특정 클래스 안에 있는 jpg, png 이미지 URL 추출
+filtered_image_urls = extract_filtered_images(html_source)
 
-    # ✅ 이미지 다운로드 실행
+# ✅ 결과 출력
+print("총 이미지 개수:", len(filtered_image_urls))
+
+# ✅ 이미지 삭제(있다면) 후 다운로드 실행
+if S_or_F:
+    folders_to_clear = ["download_images", "main_image", "ocr_texts"]
+
+    for folder in folders_to_clear:
+        if os.path.exists(folder):  # ✅ 폴더 존재 확인
+            for item in os.listdir(folder):  # ✅ 폴더 내부 파일 및 폴더 순회
+                item_path = os.path.join(folder, item)
+                
+                if os.path.isfile(item_path):  # ✅ 파일이면 삭제
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):  # ✅ 폴더이면 폴더 삭제 (하위 파일 포함)
+                    shutil.rmtree(item_path)
+
     download_images(filtered_image_urls)
 
-    # 메인 이미지, 필수 표기정보, 배송/교환/반품 안내 다운로드
-    product_image_and_name_download(html_source)
+# 메인 이미지, 필수 표기정보, 배송/교환/반품 안내 다운로드
+product_image_and_name_download(html_source)
 
-    basic_information(html_source)
+basic_information(html_source)
 
-    delibery_data(html_source)
+delibery_data(html_source)

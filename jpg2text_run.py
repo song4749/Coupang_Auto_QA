@@ -304,28 +304,33 @@ async def process_text_file_async(input_folder, output_folder):
     await asyncio.gather(*tasks)  # 모든 파일을 동시에 처리
 
 
-asyncio.run(process_images_and_ocr_async())
+def main():
+    asyncio.run(process_images_and_ocr_async())
 
-for filename in os.listdir(text_folder):
-        if filename.endswith(".html"):  # HTML 파일만 처리
-            input_path = os.path.join(text_folder, filename)
-            output_path = os.path.join(text_folder, filename)
+    for filename in os.listdir(text_folder):
+            if filename.endswith(".html"):  # HTML 파일만 처리
+                input_path = os.path.join(text_folder, filename)
+                output_path = os.path.join(text_folder, filename)
 
-            try:
-                # ✅ 원본 HTML 파일 읽기
-                with open(input_path, "r", encoding="utf-8") as file:
-                    html_data = file.read()
+                try:
+                    # ✅ 원본 HTML 파일 읽기
+                    with open(input_path, "r", encoding="utf-8") as file:
+                        html_data = file.read()
 
-                # ✅ HTML 정리 함수 실행
-                cleaned_html = clean_html_to_markdown_table(html_data)
+                    # ✅ HTML 정리 함수 실행
+                    cleaned_html = clean_html_to_markdown_table(html_data)
 
-                # ✅ 정리된 HTML 저장
-                with open(output_path, "w", encoding="utf-8") as file:
-                    file.write(cleaned_html)
+                    # ✅ 정리된 HTML 저장
+                    with open(output_path, "w", encoding="utf-8") as file:
+                        file.write(cleaned_html)
 
-                print(f"✅ 정리된 HTML 저장 완료: {output_path}")
+                    print(f"✅ 정리된 HTML 저장 완료: {output_path}")
 
-            except FileNotFoundError:
-                print(f"❌ 파일을 찾을 수 없습니다: {input_path}")
+                except FileNotFoundError:
+                    print(f"❌ 파일을 찾을 수 없습니다: {input_path}")
 
-asyncio.run(process_text_file_async(text_folder, text_folder))
+    asyncio.run(process_text_file_async(text_folder, text_folder))
+
+
+if __name__ == "__main__":
+    main()

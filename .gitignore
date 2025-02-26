@@ -1,13 +1,4 @@
 .env
-*.jpg
-*.JPG
-*.jpeg
-*.gif
-*.bmp
-*.webp
-*.svg
-*.tiff
-*.png
-*.html
 *.zip
 user_ip_data.json
+*.pyc
