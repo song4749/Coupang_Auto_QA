@@ -192,6 +192,17 @@ def copy_files(src_folder, dst_folder="."):
     return True
 
 
+def get_link_content(file_path):
+    """📌 링크 파일 (link.txt)의 내용을 읽어 반환하는 함수"""
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            return file.read().strip()  # ✅ 공백 제거 후 반환
+    except FileNotFoundError:
+        return "🚨 링크 파일을 찾을 수 없습니다."
+    except Exception as e:
+        return f"❌ 오류 발생: {e}"
+    
+
 # # ✅ Streamlit 세션 상태 확인 및 벡터 DB 삭제 로직 적용
 # if "session_active" not in st.session_state:
 #     # 🚀 세션이 새로 시작됨 (즉, 새로고침 또는 페이지 닫기 후 다시 접속한 경우)
@@ -238,23 +249,55 @@ with left:
         """
     )
     
-    col1, col2, col3, col4 = st.columns([0.2, 0.2, 0.2, 0.4])
+    if "selected_link" not in st.session_state:
+        st.session_state.selected_link = None
+    if "link_content" not in st.session_state:
+        st.session_state.link_content = None
+
+    col1, col2, col3, col4 = st.columns([0.15, 0.15, 0.15, 0.55])
     copy_success = False
 
     with col1:
         if st.button("Test - 냉장고"):
             copy_success = copy_files("test/case1")
+            st.session_state.selected_link = "test/case1/main_image/link.txt"
+            st.session_state.link_content = get_link_content(st.session_state.selected_link)
+
+            with open("main_image/product_name.txt", "r", encoding="utf-8") as file:
+                st.session_state.product_name = file.read().strip()
+            st.session_state.product_image = "main_image/main_image.jpg"
+            st.session_state.image_displayed = True
 
     with col2:
         if st.button("Test - 세탁기"):
             copy_success = copy_files("test/case2")
+            st.session_state.selected_link = "test/case2/main_image/link.txt"
+            st.session_state.link_content = get_link_content(st.session_state.selected_link)
+
+            with open("main_image/product_name.txt", "r", encoding="utf-8") as file:
+                st.session_state.product_name = file.read().strip()
+            st.session_state.product_image = "main_image/main_image.jpg"
+            st.session_state.image_displayed = True
+
 
     with col3:
         if st.button("Test - 청소기"):
             copy_success = copy_files("test/case3")
+            st.session_state.selected_link = "test/case3/main_image/link.txt"
+            st.session_state.link_content = get_link_content(st.session_state.selected_link)
+
+            with open("main_image/product_name.txt", "r", encoding="utf-8") as file:
+                st.session_state.product_name = file.read().strip()
+            st.session_state.product_image = "main_image/main_image.jpg"
+            st.session_state.image_displayed = True
+
     
     if copy_success:
         st.success("✅ 테스트 데이터 준비 완료! 이미지 크롤링 실행 버튼을 눌러 주세요.")
+
+    with col4:
+        if st.session_state.link_content:  # 버튼을 눌러서 값이 설정된 경우만 표시
+            st.info(f"선택된 파일 링크: `{st.session_state.link_content}`")
 
     initialize_crawl_data()
 

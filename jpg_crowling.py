@@ -2,6 +2,7 @@ import sys
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
+import re
 import shutil
 import requests
 from PIL import Image
@@ -145,6 +146,15 @@ def product_image_and_name_download(html):
         with open(name_path, "w", encoding="utf-8") as file:
             file.write(name)
 
+    price_div = soup.find("div", class_="prod-price-onetime")
+    if price_div:
+        price_html = price_div.prettify()  # HTML을 보기 좋게 정리
+        price_html = re.sub(r'\n\s*\n+', '\n', price_html)  # 여러 개의 연속된 줄바꿈을 하나로 줄이기
+        price_html = re.sub(r'>\s+<', '><', price_html)  # 태그 사이의 불필요한 공백 제거
+
+    price_path = os.path.join(html_folder, "price_info.html")
+    with open(price_path, "w", encoding="utf-8") as file:
+        file.write(price_html)
 
 
 def basic_information(html):
@@ -190,7 +200,7 @@ if len(sys.argv) < 2:
 
 url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
-# url = "https://www.coupang.com/vp/products/5225707661?itemId=7344236763&vendorItemId=74635450600&sourceType=CATEGORY&categoryId=413252&isAddedCart="
+# url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
 
 # ✅ 쿠팡 제품 URL
 html_source, S_or_F = get_html(url)
