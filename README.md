@@ -1,6 +1,6 @@
 # 생성형 AI 기반 쇼핑몰(쿠팡) 상담챗봇 및 답글생성 개발
 
-![이미지 설명](./readme_image\1.JPG)
+![이미지 설명](./readme_image/1.JPG)
 
 링크 : 쿠팡qa.store  <-- (한글)
 
