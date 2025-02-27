@@ -39,9 +39,6 @@ def get_html(url):
 
             if page.wait_for_selector("div.subType-IMAGE img, div.subType-TEXT img", timeout=20000):
 
-                # # ✅ 특정 요소가 나올 때까지 대기 (상품 이미지가 있는 div)
-                # page.wait_for_selector("div.subType-IMAGE", timeout=10000)
-
                 # ✅ JavaScript 실행 후 동적으로 생성된 HTML 가져오기
                 html = page.evaluate("document.documentElement.outerHTML")
                 browser.close()
@@ -57,7 +54,7 @@ def get_html(url):
 
 
 def extract_filtered_images(html):
-    """HTML에서 'subType-IMAGE' 클래스 내부의 jpg, png 이미지 URL만 추출"""
+    """HTML에서 특정 클래스 내부의 이미지 URL만 추출"""
     soup = BeautifulSoup(html, "html.parser")
 
     # 'subType-IMAGE','subType-TEXT' 찾기
@@ -194,13 +191,13 @@ def delibery_data(html):
 
 
 # ✅ 명령줄 인자로 URL을 받기
-if len(sys.argv) < 2:
-    print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
-    sys.exit(1)
+# if len(sys.argv) < 2:
+#     print("❌ 사용법: python jpg_crowling.py <쿠팡 상품 URL>")
+#     sys.exit(1)
 
-url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
+# url = sys.argv[1]  # ✅ 명령줄에서 URL 받기
 
-# url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
+url = "https://www.coupang.com/vp/products/8338421081?itemId=24078900518&vendorItemId=83384767739&q=%EB%83%89%EC%9E%A5%EA%B3%A0&itemsCount=27&searchId=31fcffc05584302&rank=0&searchRank=0&isAddedCart="
 
 # ✅ 쿠팡 제품 URL
 html_source, S_or_F = get_html(url)

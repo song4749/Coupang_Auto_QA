@@ -45,7 +45,7 @@ def get_api_key():
 def load_vector_store():
     vectorstore = None  
 
-    # ✅ HTML 폴더 내 모든 파일을 다시 벡터 DB로 저장
+    # ✅ HTML 폴더 내 모든 파일을 벡터 DB로 저장
     for filename in os.listdir(html_folder_path):
         if filename.endswith(".html"):
             file_path = os.path.join(html_folder_path, filename)
@@ -155,7 +155,7 @@ def can_crawl(user_ip):
     return user_data["count"] < MAX_CRAWL_ATTEMPTS, remaining_attempts  # 크롤링 가능 여부 반환
     
 
-# ✅ 버튼 클릭 시에만 크롤링 횟수 증가하는 함수
+# ✅ 버튼 클릭 시 크롤링 횟수 증가하는 함수
 def update_crawl_count(user_ip):
     crawl_data = load_crawl_data()
     now = time.time()
