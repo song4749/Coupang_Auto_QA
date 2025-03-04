@@ -37,8 +37,8 @@ st.sidebar.title("구매자용 메뉴")
 if st.sidebar.button("리뷰 자동 정리 시스템"):
     st.session_state.selected_page = "auto_review"
     st.rerun()
-if st.sidebar.button("2-2"):
-    st.session_state.selected_page = "2-2"
+if st.sidebar.button("고민에 따른 제품 추천 시스템"):
+    st.session_state.selected_page = "advice_cb"
     st.rerun()
 if st.sidebar.button("2-3"):
     st.session_state.selected_page = "2-3"
@@ -48,11 +48,9 @@ if st.sidebar.button("2-3"):
 if st.session_state.selected_page == "coupangQA":
     runpy.run_path("coupangQA.py")
 elif st.session_state.selected_page == "auto_review":
-    with open("auto_review.py", "r", encoding="utf-8") as f:
-        code = f.read()
-        exec(code)  # auto_review.py 실행
-elif st.session_state.selected_page == "1-2":
-    st.write("⚙️ 설정 화면입니다.")
+    runpy.run_path("auto_review.py")
+elif st.session_state.selected_page == "advice_cb":
+    runpy.run_path("advice_cb.py")
 elif st.session_state.selected_page == "1-3":
     st.write("ℹ️ 정보 화면입니다.")
 elif st.session_state.selected_page == "2-2":
