@@ -12,77 +12,82 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 st.markdown("<h1 style='text-align: center;'>고민에 따른 제품 추천 시스템</h1>", unsafe_allow_html=True)
-st.markdown("<h5 style='text-align: center; font-weight: 100'>고민을 입력해 주세요! 당신의 상황을 고려해 지금 가장 필요한 쿠팡 아이템을 추천해 드립니다.<br><br><br></h5>", unsafe_allow_html=True)
+st.markdown(
+    "<h5 style='text-align: center; font-weight: 100'>고민을 입력해 주시면 상담을 진행하고, 충분한 대화 맥락이 형성되면 적절한 쿠팡 제품을 추천해 드립니다.</h5>",
+    unsafe_allow_html=True,
+)
 
-# ✅ 레이아웃 설정 (왼쪽/오른쪽 공백 추가)
-left_space, chat_area, right_space = st.columns([2, 5, 2])
+# 좌우 여백을 위해 전체 UI를 세 열로 분할 (왼쪽, 중앙, 오른쪽)
+left_col, center_col, right_col = st.columns([2, 5, 2])
 
-with chat_area:
-    # OpenAI 모델 설정
-    llm = ChatOpenAI(model_name="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
-
-    # ✅ 대화 내용을 기억하는 메모리 추가 (기본: 최근 10개 메시지 저장)
+with center_col:
+    # 대화 기록 초기화
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = [
+            {"role": "assistant", "content": "안녕하세요! 먼저 당신의 고민을 자유롭게 말씀해 주세요."}
+        ]
     if "memory" not in st.session_state:
         st.session_state.memory = ConversationBufferMemory(memory_key="history", return_messages=True)
 
-    # ✅ 채팅 기록 저장 공간 초기화
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    # OpenAI 모델 설정
+    llm = ChatOpenAI(model_name="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
 
-    # ✅ 사용자 맞춤형 프롬프트 템플릿 추가
+    # 사용자 맞춤형 프롬프트 템플릿
     custom_prompt = PromptTemplate(
         input_variables=["history", "input"],
         template="""
-        당신은 친절한 상담 챗봇입니다. 사용자가 고민을 이야기하면 공감해주고, 현실적인 해결책을 제안해야 합니다.
-        고민을 듣고 그 상황에 필요한 제품을 추천해 주세요. 사용자가 학생인지, 직장인인지, 어느정도의 예산을 가지고 있는지 고려하세요.
+        당신은 친절하고 섬세한 상담 챗봇입니다.
+        사용자가 고민을 이야기하면 먼저 공감하고 추가 질문을 통해 상담을 진행하십시오.
+        충분한 상담이 이루어졌다고 판단되면, 적절한 제품이 있을 경우 하나만 추천하십시오.
+        단, 무리하게 제품을 추천하지 말고 대화 맥락이 충분하다고 판단될 때만 추천하세요.
 
+        **출력 형식 예시**:
+        - 고민 요약:
+        - 해결 방법:
+        - 추천 제품: (제품 추천이 필요하다고 판단될 경우만 표시)
+        - 쿠팡 검색 키워드: (제품 추천이 필요할 경우만 제공)
+
+        **입력 정보**:
         - 사용자 고민: {input}
         - 이전 대화 내용: {history}
-
-        💡 출력 형식:
-        - 고민 요약: 
-        - 해결 방법:
-        - 추천 제품: (한 개만 추천)
-        - 쿠팡 검색 키워드: (추천 제품의 핵심 키워드, 짧게)
         """
     )
 
-    # ✅ 대화형 체인 생성 (Retrieval 기능 추가 가능)
     conversation_chain = ConversationChain(
         llm=llm,
         memory=st.session_state.memory,
         prompt=custom_prompt
     )
 
-    # 채팅 메시지 표시 (채팅 말풍선 스타일)
-    for role, text in st.session_state.chat_history:
-        with st.chat_message("user" if role == "👤 당신" else "assistant"):
-            st.write(text)
+    # 기존 대화 내역 출력 (채팅 말풍선 스타일)
+    for message in st.session_state.chat_history:
+        with st.chat_message("user" if message["role"] == "user" else "assistant"):
+            st.write(message["content"])
 
-# 고정된 입력창 영역 생성
-user_input = st.chat_input("💬 고민을 입력하세요...")
-
-# ✅ 응답 처리
-if user_input:
-    # ✅ chat_history 예외 처리 (없을 경우 빈 문자열 반환)
+# 사용자 입력 받기 (입력창은 st.chat_input() 사용)
+if prompt := st.chat_input("💬 고민을 입력하세요..."):
+    # 사용자 메시지 추가
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+    
+    # 메모리에서 대화 기록 불러오기 (없으면 빈 문자열)
     chat_history_data = st.session_state.memory.load_memory_variables({})
     history = chat_history_data.get("history", "")
-
-    # ✅ GPT에 요청하여 제품 추천 받기
-    response = conversation_chain.run({"history": history, "input": user_input})
-
-    # ✅ 추천 제품 추출 (GPT가 생성한 응답에서 제품명 찾기 - 정규식 사용)
+    
+    # GPT 호출: 모델이 자율적으로 상담 후 제품 추천 여부를 결정
+    response = conversation_chain.run({"history": history, "input": prompt})
+    
+    # 만약 GPT 응답에 "쿠팡 검색 키워드:"가 포함되어 있다면 제품 추천으로 판단하여 링크 생성
     match = re.search(r"쿠팡 검색 키워드:\s*(.+)", response)
-    recommended_product = match.group(1).strip() if match else None
-
-    # ✅ 쿠팡 검색 링크 생성 (GPT가 추천한 제품으로)
-    if recommended_product:
+    if match:
+        recommended_product = match.group(1).strip()
         coupang_link = f"https://www.coupang.com/np/search?q={recommended_product.replace(' ', '+')}"
         response += f"\n\n🔗 [쿠팡에서 '{recommended_product}' 검색하기]({coupang_link})"
-
-    # ✅ 채팅 기록 저장
-    st.session_state.chat_history.append(("👤 당신", user_input))
-    st.session_state.chat_history.append(("🤖 챗봇", response))
-
-    # ✅ 새 메시지 바로 표시 (입력 후 자동 스크롤)
+    
+    # GPT 응답을 대화 내역에 추가
+    st.session_state.chat_history.append({"role": "assistant", "content": response})
+    with st.chat_message("assistant"):
+        st.write(response)
+    
     st.rerun()
