@@ -14,8 +14,6 @@ sys.stdout.reconfigure(encoding="utf-8")
 save_folder = "download_images"
 main_image_folder = "main_image"
 html_folder = "ocr_texts"
-if not os.path.exists(save_folder):
-    os.makedirs(save_folder)
 
 
 def get_html(url):
