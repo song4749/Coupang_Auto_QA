@@ -10,7 +10,7 @@ if "selected_page" not in st.session_state:
 # ✅ 메인 화면 표시
 if st.session_state.selected_page is None:
     st.title("쿠팡 상담챗봇 및 답글생성 개발 프로젝트")
-    st.write("ㅁㄴㅇㄹ")
+    st.write("쿠팡 사용자들인 판매자와 구매자들에게 편의성을 제공하기 위한 프로젝트입니다.")
 
 # 홈 버튼
 if st.sidebar.button("홈"):
@@ -58,4 +58,4 @@ elif st.session_state.selected_page == "2-2":
 elif st.session_state.selected_page == "2-3":
     st.write("ℹ️ 정보 화면입니다.")
 else:
-    st.write("❗ 페이지를 선택하세요.")
+    st.write("❗ <<--- 페이지를 선택하세요.")
