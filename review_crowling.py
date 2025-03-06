@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import pandas as pd
+import time
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
