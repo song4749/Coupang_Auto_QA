@@ -25,23 +25,17 @@ if st.sidebar.button("상품문의 자동응답 시스템"):
     st.session_state.selected_page = "coupangQA"
     st.rerun()
 
-if st.sidebar.button("1-2"):
+if st.sidebar.button("상품 판매 자동 등록(개발중)"):
     st.session_state.selected_page = "1-2"
-    st.rerun()
-if st.sidebar.button("1-3"):
-    st.session_state.selected_page = "1-3"
     st.rerun()
 
 st.sidebar.title("구매자용 메뉴")
 
-if st.sidebar.button("리뷰 자동 정리 시스템"):
+if st.sidebar.button("리뷰 자동 정리 시스템(개발중)"):
     st.session_state.selected_page = "auto_review"
     st.rerun()
 if st.sidebar.button("고민에 따른 제품 추천 시스템"):
     st.session_state.selected_page = "advice_cb"
-    st.rerun()
-if st.sidebar.button("2-3"):
-    st.session_state.selected_page = "2-3"
     st.rerun()
 
 # ✅ 선택된 페이지에 따라 실행 (사이드바는 그대로 유지됨)
@@ -51,11 +45,5 @@ elif st.session_state.selected_page == "auto_review":
     runpy.run_path("auto_review.py")
 elif st.session_state.selected_page == "advice_cb":
     runpy.run_path("advice_cb.py")
-elif st.session_state.selected_page == "1-3":
-    st.write("ℹ️ 정보 화면입니다.")
-elif st.session_state.selected_page == "2-2":
-    st.write("⚙️ 설정 화면입니다.")
-elif st.session_state.selected_page == "2-3":
-    st.write("ℹ️ 정보 화면입니다.")
 else:
-    st.write("❗ <<--- 페이지를 선택하세요.")
+    st.write("<<--- 페이지를 선택하세요 ❗")
