@@ -392,10 +392,10 @@ if "api_key_checked" not in st.session_state:
 vectorstore = st.session_state.vectorstore if "vectorstore" in st.session_state else load_vector_store()
 
 # ✅ OpenAI LLM (GPT-4 Turbo) 설정
-llm = ChatOpenAI(model_name="gpt-4o", temperature=0.3)
+llm = ChatOpenAI(model_name="gpt-4o", temperature=0.5)
 
 # ✅ 문서 검색을 위한 Retriever 설정
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})  # 가장 관련 있는 3개 문서 검색
+retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # 가장 관련 있는 3개 문서 검색
 
 # ✅ Prompt 템플릿 설정 (검색된 문서를 포함한 질의 응답)
 prompt_template = PromptTemplate(
@@ -409,9 +409,15 @@ prompt_template = PromptTemplate(
     - 사용자가 이해하기 쉽게, **필요하면 추가 설명을 덧붙이세요**.  
     - 너무 짧거나 딱딱한 답변 대신, **친절하고 부드러운 톤으로 응답**하세요.  
 
-    ❌ **문서에서 답을 찾지 못한 경우**  
-    - "죄송합니다. 해당 질문에 대한 정확한 정보를 찾을 수 없습니다.  
-    보다 자세한 사항은 판매자에게 문의해주세요." 라고 안내하세요.  
+    ❗ **문서에서 정확한 답을 찾지 못한 경우**  
+    - 관련 정보가 있다면 **논리적으로 유추하여 답변**하세요.  
+    - 예를 들어, 제품의 크기, 기능, 일반적인 사용 방법을 고려하여 **가장 적절한 답을 제공**하세요.  
+    - 정확한 정보는 없지만 비슷한 사례가 있다면 이를 참고하여 **최대한 유용한 답을 제시**하세요.  
+
+    ❌ **완전히 알 수 없는 경우**  
+    - 그래도 확실한 정보가 없을 경우, "죄송합니다. 해당 질문에 대한 정확한 정보를 찾을 수 없습니다.  
+      하지만 일반적으로 [유추된 정보]를 참고하시면 도움이 될 수 있습니다."라고 안내하세요.  
+    - 보다 자세한 사항은 판매자에게 문의하도록 유도하세요.  
 
     🌟 **추가 사항**  
     - 문서에 있는 정보라도 **불확실하거나 애매하면**, 확실한 부분만 답변하세요.  
@@ -424,7 +430,7 @@ prompt_template = PromptTemplate(
     {question}
 
     답변:
-    """,
+    """
 )
 
 # ✅ RAG 기반 QA 시스템 생성

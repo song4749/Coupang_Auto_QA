@@ -142,57 +142,55 @@ async def process_ocr_to_html_async(image_path, session):   # upstage ocr
     return output_path
 
 
-async def process_images_and_ocr_async():
-    """📌 다운로드된 모든 이미지를 비동기 처리 (분할 → 전처리 → OCR)"""
+async def process_images_and_ocr_mixed():
+    """📌 이미지 분할 & 전처리는 비동기로 실행, OCR은 순차적으로 실행"""
+
     image_files = [
-        os.path.join(save_folder, img) 
-        for img in os.listdir(save_folder) 
+        os.path.join(save_folder, img)
+        for img in os.listdir(save_folder)
         if img.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg", ".tiff", ".JPG"))
     ]
 
     async with aiohttp.ClientSession() as session:
-        async def process_single_image(image_path):
+        for image_path in image_files:
+            print(f"🚀 이미지 처리 시작: {image_path}")
 
-            # 1️⃣ [이미지 분할] → 반드시 모든 분할이 완료될 때까지 대기
+            # 1️⃣ [이미지 분할] → 비동기 실행
             cropped_images = await split_vertical_with_overlap_async(image_path, cropped_folder)
             if not cropped_images:
                 print(f"⚠ 분할 실패: {image_path}")
-                return  
+                continue
 
             print(f"✅ 분할 완료: {image_path} → {len(cropped_images)}개 이미지 생성")
 
-            # 2️⃣ [이미지 전처리] → 모든 분할된 이미지의 전처리 완료 대기
-            preprocessed_images = []
-            for cropped in cropped_images:
-                processed = await preprocess_image_async(cropped)  # 개별 이미지 전처리
-                if processed:
-                    preprocessed_images.append(processed)
+            # 2️⃣ [이미지 전처리] → 비동기 실행
+            preprocessed_images = await asyncio.gather(
+                *[preprocess_image_async(cropped) for cropped in cropped_images]
+            )
 
+            preprocessed_images = [img for img in preprocessed_images if img]  # None 제거
             if not preprocessed_images:
                 print(f"⚠ 전처리 실패: {image_path}")
-                return  
+                continue
 
             print(f"✅ 전처리 완료: {image_path} → {len(preprocessed_images)}개 이미지 전처리됨")
 
-            # 3️⃣ [OCR 실행] → 모든 전처리된 이미지에 대해 OCR 실행
+            # 3️⃣ [OCR 실행] → **순차적으로 실행 (동기적 실행)**
             ocr_results = []
             for preprocessed in preprocessed_images:
-                ocr_output = await process_ocr_to_html_async(preprocessed, session)
+                ocr_output = await process_ocr_to_html_async(preprocessed, session)  # 동기 처리
                 if ocr_output:
                     ocr_results.append(ocr_output)
 
             if not ocr_results:
                 print(f"⚠ OCR 결과 없음: {image_path}")
-                return
+                continue
 
             print(f"✅ OCR 완료: {image_path} → {len(ocr_results)}개 HTML 파일 생성됨")
 
-        # ✅ 모든 이미지에 대해 순차적으로 처리 (각각의 이미지에 대해 `process_single_image` 실행)
-        await asyncio.gather(*[process_single_image(img) for img in image_files])
-
-    print(f"🎉 모든 이미지 OCR 완료!")
-
+    print(f"🎉 모든 이미지 OCR 순차 처리 완료!")
  
+
 def clean_html_to_markdown_table(html_content):
     """HTML에서 표를 Markdown 형식으로 변환하고, 태그 속성을 제거하여 순수 텍스트만 추출하는 함수"""
     
@@ -305,31 +303,31 @@ async def process_text_file_async(input_folder, output_folder):
 
 
 def main():
-    asyncio.run(process_images_and_ocr_async())
+    asyncio.run(process_images_and_ocr_mixed())  # ✅ OCR만 동기적으로 실행하도록 변경
 
     for filename in os.listdir(text_folder):
-            if filename.endswith(".html"):  # HTML 파일만 처리
-                input_path = os.path.join(text_folder, filename)
-                output_path = os.path.join(text_folder, filename)
+        if filename.endswith(".html"):  # HTML 파일만 처리
+            input_path = os.path.join(text_folder, filename)
+            output_path = os.path.join(text_folder, filename)
 
-                try:
-                    # ✅ 원본 HTML 파일 읽기
-                    with open(input_path, "r", encoding="utf-8") as file:
-                        html_data = file.read()
+            try:
+                # ✅ 원본 HTML 파일 읽기
+                with open(input_path, "r", encoding="utf-8") as file:
+                    html_data = file.read()
 
-                    # ✅ HTML 정리 함수 실행
-                    cleaned_html = clean_html_to_markdown_table(html_data)
+                # ✅ HTML 정리 함수 실행
+                cleaned_html = clean_html_to_markdown_table(html_data)
 
-                    # ✅ 정리된 HTML 저장
-                    with open(output_path, "w", encoding="utf-8") as file:
-                        file.write(cleaned_html)
+                # ✅ 정리된 HTML 저장
+                with open(output_path, "w", encoding="utf-8") as file:
+                    file.write(cleaned_html)
 
-                    print(f"✅ 정리된 HTML 저장 완료: {output_path}")
+                print(f"✅ 정리된 HTML 저장 완료: {output_path}")
 
-                except FileNotFoundError:
-                    print(f"❌ 파일을 찾을 수 없습니다: {input_path}")
+            except FileNotFoundError:
+                print(f"❌ 파일을 찾을 수 없습니다: {input_path}")
 
-    asyncio.run(process_text_file_async(text_folder, text_folder))
+    asyncio.run(process_text_file_async(text_folder, text_folder))  # ✅ OpenAI 문서 정리 실행
 
 
 if __name__ == "__main__":
