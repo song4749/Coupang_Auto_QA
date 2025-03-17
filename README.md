@@ -45,4 +45,4 @@ A: LLM --> 공감 --> 조언 --> 추가적인 질문 --> 고민에 따라 전기
 > https://velog.io/@lone4749/%EC%87%BC%ED%95%91%EB%AA%B0%EC%BF%A0%ED%8C%A1-%EC%83%81%ED%92%88%EB%AC%B8%EC%9D%98-%EC%9E%90%EB%8F%99-%EB%8B%B5%EA%B8%80%EC%83%9D%EC%84%B1
 
 ## 시연 영상
-<iframe width="560" height="315" src="https://www.youtube.com/embed/t_dhK3f3DSI" frameborder="0" allowfullscreen></iframe>
+https://www.youtube.com/embed/t_dhK3f3DSI
