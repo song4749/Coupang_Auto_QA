@@ -40,3 +40,9 @@ A: LLM --> 공감 --> 조언 --> 추가적인 질문 --> 고민에 따라 전기
 ## 사용자요구사항
 사용자중 판매자에게는 업무 효율성을 높이고 고객 만족도를 극대화하는 도구  
 사용자중 구매자에게는 신속하고 정확한 상담을 제공하여 더욱 편리한 쇼핑 경험을 제공
+
+## 진행 과정
+> https://velog.io/@lone4749/%EC%87%BC%ED%95%91%EB%AA%B0%EC%BF%A0%ED%8C%A1-%EC%83%81%ED%92%88%EB%AC%B8%EC%9D%98-%EC%9E%90%EB%8F%99-%EB%8B%B5%EA%B8%80%EC%83%9D%EC%84%B1
+
+## 시연 영상
+<iframe width="560" height="315" src="https://www.youtube.com/embed/t_dhK3f3DSI" frameborder="0" allowfullscreen></iframe>
